@@ -1,0 +1,27 @@
+# MRI k-Space Reconstruction Simulator -- Stage 1 dependencies.
+# Deliberately minimal: standard scientific Python only, no deep learning.
+numpy>=1.24
+matplotlib>=3.6
+scikit-image>=0.20
+
+# scipy is pulled in as a scikit-image dependency; pinned explicitly so the
+# environment is reproducible. Stage 1 uses numpy.fft directly rather than
+# scipy.fft -- the two are interchangeable here.
+scipy>=1.10
+
+# --- Stage 2 ---------------------------------------------------------------
+# PyWavelets supplies the sparsifying transform for the compressed-sensing
+# reconstruction (mri_sim/cs.py). Streamlit and pandas power the interactive
+# web app (app/streamlit_app.py); neither is needed for the CLI pipeline.
+PyWavelets>=1.4
+streamlit>=1.30
+pandas>=2.0
+
+# --- Build-time only, for the k-space sample store (kspace_store/build.py) ---
+# These are needed to READ the raw dataset formats once, when building the
+# store. Reading the finished store (kspace_store/store.py) needs numpy only,
+# so a deployed web app does not need any of these.
+h5py>=3.8            # BrainTumorDataPublic .mat files are HDF5 underneath
+pillow>=9.0          # NINS JPEGs, and writing the preview PNGs
+pydicom>=2.4         # MRI_Dataset .ima spine studies
+nibabel>=5.0         # 3D_volumetric_imaging .nii volumes

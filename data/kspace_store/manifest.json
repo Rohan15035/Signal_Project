@@ -1,0 +1,3218 @@
+{
+  "schema_version": 1,
+  "built_at": "2026-08-08T23:46:43",
+  "resolution": 256,
+  "n_samples": 40,
+  "dataset_root": "Dataset/archive (1)",
+  "kspace_convention": "centered (fftshift applied); kspace = fftshift(fft2(image * exp(1j*phase)))",
+  "phase_strength": 1.0,
+  "energy_radii": [
+    0.02,
+    0.05,
+    0.1,
+    0.25,
+    0.5
+  ],
+  "samples": [
+    {
+      "id": "brain-meningioma-1",
+      "title": "Brain MRI, meningioma (case 1)",
+      "collection": "BrainTumorDataPublic",
+      "collection_note": "3064 contrast-enhanced T1 brain slices with expert-drawn tumour masks; published by Cheng et al.",
+      "tags": [
+        "brain",
+        "tumour",
+        "meningioma",
+        "has-mask"
+      ],
+      "source_file": "BrainTumorDataPublic/1.mat",
+      "shape": [
+        256,
+        256
+      ],
+      "crop": "center",
+      "selection": null,
+      "acquisition": {
+        "modality": "MRI",
+        "weighting": "T1-weighted, contrast-enhanced",
+        "anatomy": "brain",
+        "plane": "axial / coronal / sagittal (varies by case)",
+        "finding": "meningioma",
+        "label_code": 1,
+        "patient_id": "100360",
+        "native_shape": [
+          512,
+          512
+        ]
+      },
+      "phase": {
+        "model": "synthetic smooth phase (B0 bowl + linear ramp + coil ripples)",
+        "seed": 1658862802,
+        "strength": 1.0
+      },
+      "stats": {
+        "energy_within_r0.02": 0.695288,
+        "energy_within_r0.05": 0.794924,
+        "energy_within_r0.1": 0.900755,
+        "energy_within_r0.25": 0.973703,
+        "energy_within_r0.5": 0.993885,
+        "hermitian_asymmetry": 0.827831,
+        "kspace_dynamic_range_db": 67.59,
+        "tumor_area_px": 1134
+      },
+      "arrays": {
+        "kspace": {
+          "dtype": "complex64",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "image": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "phase": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "tumor_mask": {
+          "dtype": "uint8",
+          "shape": [
+            256,
+            256
+          ]
+        }
+      },
+      "files": {
+        "npz": "samples/brain-meningioma-1.npz",
+        "image_png": "previews/brain-meningioma-1_image.png",
+        "kspace_png": "previews/brain-meningioma-1_kspace.png"
+      }
+    },
+    {
+      "id": "brain-meningioma-38",
+      "title": "Brain MRI, meningioma (case 38)",
+      "collection": "BrainTumorDataPublic",
+      "collection_note": "3064 contrast-enhanced T1 brain slices with expert-drawn tumour masks; published by Cheng et al.",
+      "tags": [
+        "brain",
+        "tumour",
+        "meningioma",
+        "has-mask"
+      ],
+      "source_file": "BrainTumorDataPublic/38.mat",
+      "shape": [
+        256,
+        256
+      ],
+      "crop": "center",
+      "selection": null,
+      "acquisition": {
+        "modality": "MRI",
+        "weighting": "T1-weighted, contrast-enhanced",
+        "anatomy": "brain",
+        "plane": "axial / coronal / sagittal (varies by case)",
+        "finding": "meningioma",
+        "label_code": 1,
+        "patient_id": "103673",
+        "native_shape": [
+          512,
+          512
+        ]
+      },
+      "phase": {
+        "model": "synthetic smooth phase (B0 bowl + linear ramp + coil ripples)",
+        "seed": 351970300,
+        "strength": 1.0
+      },
+      "stats": {
+        "energy_within_r0.02": 0.701948,
+        "energy_within_r0.05": 0.787912,
+        "energy_within_r0.1": 0.877381,
+        "energy_within_r0.25": 0.964349,
+        "energy_within_r0.5": 0.992982,
+        "hermitian_asymmetry": 1.371844,
+        "kspace_dynamic_range_db": 68.94,
+        "tumor_area_px": 793
+      },
+      "arrays": {
+        "kspace": {
+          "dtype": "complex64",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "image": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "phase": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "tumor_mask": {
+          "dtype": "uint8",
+          "shape": [
+            256,
+            256
+          ]
+        }
+      },
+      "files": {
+        "npz": "samples/brain-meningioma-38.npz",
+        "image_png": "previews/brain-meningioma-38_image.png",
+        "kspace_png": "previews/brain-meningioma-38_kspace.png"
+      }
+    },
+    {
+      "id": "brain-meningioma-75",
+      "title": "Brain MRI, meningioma (case 75)",
+      "collection": "BrainTumorDataPublic",
+      "collection_note": "3064 contrast-enhanced T1 brain slices with expert-drawn tumour masks; published by Cheng et al.",
+      "tags": [
+        "brain",
+        "tumour",
+        "meningioma",
+        "has-mask"
+      ],
+      "source_file": "BrainTumorDataPublic/75.mat",
+      "shape": [
+        256,
+        256
+      ],
+      "crop": "center",
+      "selection": null,
+      "acquisition": {
+        "modality": "MRI",
+        "weighting": "T1-weighted, contrast-enhanced",
+        "anatomy": "brain",
+        "plane": "axial / coronal / sagittal (varies by case)",
+        "finding": "meningioma",
+        "label_code": 1,
+        "patient_id": "106665",
+        "native_shape": [
+          512,
+          512
+        ]
+      },
+      "phase": {
+        "model": "synthetic smooth phase (B0 bowl + linear ramp + coil ripples)",
+        "seed": 2314260175,
+        "strength": 1.0
+      },
+      "stats": {
+        "energy_within_r0.02": 0.728836,
+        "energy_within_r0.05": 0.807081,
+        "energy_within_r0.1": 0.879924,
+        "energy_within_r0.25": 0.979493,
+        "energy_within_r0.5": 0.996748,
+        "hermitian_asymmetry": 0.980742,
+        "kspace_dynamic_range_db": 70.95,
+        "tumor_area_px": 2854
+      },
+      "arrays": {
+        "kspace": {
+          "dtype": "complex64",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "image": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "phase": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "tumor_mask": {
+          "dtype": "uint8",
+          "shape": [
+            256,
+            256
+          ]
+        }
+      },
+      "files": {
+        "npz": "samples/brain-meningioma-75.npz",
+        "image_png": "previews/brain-meningioma-75_image.png",
+        "kspace_png": "previews/brain-meningioma-75_kspace.png"
+      }
+    },
+    {
+      "id": "brain-meningioma-112",
+      "title": "Brain MRI, meningioma (case 112)",
+      "collection": "BrainTumorDataPublic",
+      "collection_note": "3064 contrast-enhanced T1 brain slices with expert-drawn tumour masks; published by Cheng et al.",
+      "tags": [
+        "brain",
+        "tumour",
+        "meningioma",
+        "has-mask"
+      ],
+      "source_file": "BrainTumorDataPublic/112.mat",
+      "shape": [
+        256,
+        256
+      ],
+      "crop": "center",
+      "selection": null,
+      "acquisition": {
+        "modality": "MRI",
+        "weighting": "T1-weighted, contrast-enhanced",
+        "anatomy": "brain",
+        "plane": "axial / coronal / sagittal (varies by case)",
+        "finding": "meningioma",
+        "label_code": 1,
+        "patient_id": "108550",
+        "native_shape": [
+          512,
+          512
+        ]
+      },
+      "phase": {
+        "model": "synthetic smooth phase (B0 bowl + linear ramp + coil ripples)",
+        "seed": 2831369073,
+        "strength": 1.0
+      },
+      "stats": {
+        "energy_within_r0.02": 0.688081,
+        "energy_within_r0.05": 0.780641,
+        "energy_within_r0.1": 0.885333,
+        "energy_within_r0.25": 0.972344,
+        "energy_within_r0.5": 0.994692,
+        "hermitian_asymmetry": 1.159995,
+        "kspace_dynamic_range_db": 68.33,
+        "tumor_area_px": 834
+      },
+      "arrays": {
+        "kspace": {
+          "dtype": "complex64",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "image": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "phase": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "tumor_mask": {
+          "dtype": "uint8",
+          "shape": [
+            256,
+            256
+          ]
+        }
+      },
+      "files": {
+        "npz": "samples/brain-meningioma-112.npz",
+        "image_png": "previews/brain-meningioma-112_image.png",
+        "kspace_png": "previews/brain-meningioma-112_kspace.png"
+      }
+    },
+    {
+      "id": "brain-glioma-741",
+      "title": "Brain MRI, glioma (case 741)",
+      "collection": "BrainTumorDataPublic",
+      "collection_note": "3064 contrast-enhanced T1 brain slices with expert-drawn tumour masks; published by Cheng et al.",
+      "tags": [
+        "brain",
+        "tumour",
+        "glioma",
+        "has-mask"
+      ],
+      "source_file": "BrainTumorDataPublic/741.mat",
+      "shape": [
+        256,
+        256
+      ],
+      "crop": "center",
+      "selection": null,
+      "acquisition": {
+        "modality": "MRI",
+        "weighting": "T1-weighted, contrast-enhanced",
+        "anatomy": "brain",
+        "plane": "axial / coronal / sagittal (varies by case)",
+        "finding": "glioma",
+        "label_code": 2,
+        "patient_id": "112105",
+        "native_shape": [
+          512,
+          512
+        ]
+      },
+      "phase": {
+        "model": "synthetic smooth phase (B0 bowl + linear ramp + coil ripples)",
+        "seed": 2970198224,
+        "strength": 1.0
+      },
+      "stats": {
+        "energy_within_r0.02": 0.70429,
+        "energy_within_r0.05": 0.801697,
+        "energy_within_r0.1": 0.886513,
+        "energy_within_r0.25": 0.969537,
+        "energy_within_r0.5": 0.99393,
+        "hermitian_asymmetry": 1.288165,
+        "kspace_dynamic_range_db": 67.61,
+        "tumor_area_px": 3825
+      },
+      "arrays": {
+        "kspace": {
+          "dtype": "complex64",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "image": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "phase": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "tumor_mask": {
+          "dtype": "uint8",
+          "shape": [
+            256,
+            256
+          ]
+        }
+      },
+      "files": {
+        "npz": "samples/brain-glioma-741.npz",
+        "image_png": "previews/brain-glioma-741_image.png",
+        "kspace_png": "previews/brain-glioma-741_kspace.png"
+      }
+    },
+    {
+      "id": "brain-glioma-778",
+      "title": "Brain MRI, glioma (case 778)",
+      "collection": "BrainTumorDataPublic",
+      "collection_note": "3064 contrast-enhanced T1 brain slices with expert-drawn tumour masks; published by Cheng et al.",
+      "tags": [
+        "brain",
+        "tumour",
+        "glioma",
+        "has-mask"
+      ],
+      "source_file": "BrainTumorDataPublic/778.mat",
+      "shape": [
+        256,
+        256
+      ],
+      "crop": "center",
+      "selection": null,
+      "acquisition": {
+        "modality": "MRI",
+        "weighting": "T1-weighted, contrast-enhanced",
+        "anatomy": "brain",
+        "plane": "axial / coronal / sagittal (varies by case)",
+        "finding": "glioma",
+        "label_code": 2,
+        "patient_id": "107747",
+        "native_shape": [
+          512,
+          512
+        ]
+      },
+      "phase": {
+        "model": "synthetic smooth phase (B0 bowl + linear ramp + coil ripples)",
+        "seed": 939665040,
+        "strength": 1.0
+      },
+      "stats": {
+        "energy_within_r0.02": 0.735184,
+        "energy_within_r0.05": 0.845938,
+        "energy_within_r0.1": 0.918595,
+        "energy_within_r0.25": 0.977236,
+        "energy_within_r0.5": 0.996307,
+        "hermitian_asymmetry": 0.890674,
+        "kspace_dynamic_range_db": 72.48,
+        "tumor_area_px": 1138
+      },
+      "arrays": {
+        "kspace": {
+          "dtype": "complex64",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "image": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "phase": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "tumor_mask": {
+          "dtype": "uint8",
+          "shape": [
+            256,
+            256
+          ]
+        }
+      },
+      "files": {
+        "npz": "samples/brain-glioma-778.npz",
+        "image_png": "previews/brain-glioma-778_image.png",
+        "kspace_png": "previews/brain-glioma-778_kspace.png"
+      }
+    },
+    {
+      "id": "brain-glioma-815",
+      "title": "Brain MRI, glioma (case 815)",
+      "collection": "BrainTumorDataPublic",
+      "collection_note": "3064 contrast-enhanced T1 brain slices with expert-drawn tumour masks; published by Cheng et al.",
+      "tags": [
+        "brain",
+        "tumour",
+        "glioma",
+        "has-mask"
+      ],
+      "source_file": "BrainTumorDataPublic/815.mat",
+      "shape": [
+        256,
+        256
+      ],
+      "crop": "center",
+      "selection": null,
+      "acquisition": {
+        "modality": "MRI",
+        "weighting": "T1-weighted, contrast-enhanced",
+        "anatomy": "brain",
+        "plane": "axial / coronal / sagittal (varies by case)",
+        "finding": "glioma",
+        "label_code": 2,
+        "patient_id": "97609",
+        "native_shape": [
+          512,
+          512
+        ]
+      },
+      "phase": {
+        "model": "synthetic smooth phase (B0 bowl + linear ramp + coil ripples)",
+        "seed": 3862279304,
+        "strength": 1.0
+      },
+      "stats": {
+        "energy_within_r0.02": 0.721265,
+        "energy_within_r0.05": 0.809025,
+        "energy_within_r0.1": 0.901308,
+        "energy_within_r0.25": 0.979154,
+        "energy_within_r0.5": 0.995569,
+        "hermitian_asymmetry": 1.000431,
+        "kspace_dynamic_range_db": 70.83,
+        "tumor_area_px": 2921
+      },
+      "arrays": {
+        "kspace": {
+          "dtype": "complex64",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "image": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "phase": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "tumor_mask": {
+          "dtype": "uint8",
+          "shape": [
+            256,
+            256
+          ]
+        }
+      },
+      "files": {
+        "npz": "samples/brain-glioma-815.npz",
+        "image_png": "previews/brain-glioma-815_image.png",
+        "kspace_png": "previews/brain-glioma-815_kspace.png"
+      }
+    },
+    {
+      "id": "brain-glioma-889",
+      "title": "Brain MRI, glioma (case 889)",
+      "collection": "BrainTumorDataPublic",
+      "collection_note": "3064 contrast-enhanced T1 brain slices with expert-drawn tumour masks; published by Cheng et al.",
+      "tags": [
+        "brain",
+        "tumour",
+        "glioma",
+        "has-mask"
+      ],
+      "source_file": "BrainTumorDataPublic/889.mat",
+      "shape": [
+        256,
+        256
+      ],
+      "crop": "center",
+      "selection": null,
+      "acquisition": {
+        "modality": "MRI",
+        "weighting": "T1-weighted, contrast-enhanced",
+        "anatomy": "brain",
+        "plane": "axial / coronal / sagittal (varies by case)",
+        "finding": "glioma",
+        "label_code": 2,
+        "patient_id": "93825",
+        "native_shape": [
+          512,
+          512
+        ]
+      },
+      "phase": {
+        "model": "synthetic smooth phase (B0 bowl + linear ramp + coil ripples)",
+        "seed": 3726631329,
+        "strength": 1.0
+      },
+      "stats": {
+        "energy_within_r0.02": 0.697123,
+        "energy_within_r0.05": 0.8361,
+        "energy_within_r0.1": 0.921766,
+        "energy_within_r0.25": 0.982666,
+        "energy_within_r0.5": 0.996991,
+        "hermitian_asymmetry": 1.026438,
+        "kspace_dynamic_range_db": 72.73,
+        "tumor_area_px": 1160
+      },
+      "arrays": {
+        "kspace": {
+          "dtype": "complex64",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "image": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "phase": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "tumor_mask": {
+          "dtype": "uint8",
+          "shape": [
+            256,
+            256
+          ]
+        }
+      },
+      "files": {
+        "npz": "samples/brain-glioma-889.npz",
+        "image_png": "previews/brain-glioma-889_image.png",
+        "kspace_png": "previews/brain-glioma-889_kspace.png"
+      }
+    },
+    {
+      "id": "brain-pituitary-1037",
+      "title": "Brain MRI, pituitary tumor (case 1037)",
+      "collection": "BrainTumorDataPublic",
+      "collection_note": "3064 contrast-enhanced T1 brain slices with expert-drawn tumour masks; published by Cheng et al.",
+      "tags": [
+        "brain",
+        "tumour",
+        "pituitary tumor",
+        "has-mask"
+      ],
+      "source_file": "BrainTumorDataPublic/1037.mat",
+      "shape": [
+        256,
+        256
+      ],
+      "crop": "center",
+      "selection": null,
+      "acquisition": {
+        "modality": "MRI",
+        "weighting": "T1-weighted, contrast-enhanced",
+        "anatomy": "brain",
+        "plane": "axial / coronal / sagittal (varies by case)",
+        "finding": "pituitary tumor",
+        "label_code": 3,
+        "patient_id": "106062",
+        "native_shape": [
+          512,
+          512
+        ]
+      },
+      "phase": {
+        "model": "synthetic smooth phase (B0 bowl + linear ramp + coil ripples)",
+        "seed": 2134823269,
+        "strength": 1.0
+      },
+      "stats": {
+        "energy_within_r0.02": 0.731978,
+        "energy_within_r0.05": 0.836777,
+        "energy_within_r0.1": 0.899087,
+        "energy_within_r0.25": 0.959455,
+        "energy_within_r0.5": 0.990583,
+        "hermitian_asymmetry": 1.272167,
+        "kspace_dynamic_range_db": 69.05,
+        "tumor_area_px": 1416
+      },
+      "arrays": {
+        "kspace": {
+          "dtype": "complex64",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "image": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "phase": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "tumor_mask": {
+          "dtype": "uint8",
+          "shape": [
+            256,
+            256
+          ]
+        }
+      },
+      "files": {
+        "npz": "samples/brain-pituitary-1037.npz",
+        "image_png": "previews/brain-pituitary-1037_image.png",
+        "kspace_png": "previews/brain-pituitary-1037_kspace.png"
+      }
+    },
+    {
+      "id": "brain-pituitary-1111",
+      "title": "Brain MRI, pituitary tumor (case 1111)",
+      "collection": "BrainTumorDataPublic",
+      "collection_note": "3064 contrast-enhanced T1 brain slices with expert-drawn tumour masks; published by Cheng et al.",
+      "tags": [
+        "brain",
+        "tumour",
+        "pituitary tumor",
+        "has-mask"
+      ],
+      "source_file": "BrainTumorDataPublic/1111.mat",
+      "shape": [
+        256,
+        256
+      ],
+      "crop": "center",
+      "selection": null,
+      "acquisition": {
+        "modality": "MRI",
+        "weighting": "T1-weighted, contrast-enhanced",
+        "anatomy": "brain",
+        "plane": "axial / coronal / sagittal (varies by case)",
+        "finding": "pituitary tumor",
+        "label_code": 3,
+        "patient_id": "110993",
+        "native_shape": [
+          512,
+          512
+        ]
+      },
+      "phase": {
+        "model": "synthetic smooth phase (B0 bowl + linear ramp + coil ripples)",
+        "seed": 2406749126,
+        "strength": 1.0
+      },
+      "stats": {
+        "energy_within_r0.02": 0.802313,
+        "energy_within_r0.05": 0.870822,
+        "energy_within_r0.1": 0.930406,
+        "energy_within_r0.25": 0.977115,
+        "energy_within_r0.5": 0.99442,
+        "hermitian_asymmetry": 1.254535,
+        "kspace_dynamic_range_db": 70.74,
+        "tumor_area_px": 538
+      },
+      "arrays": {
+        "kspace": {
+          "dtype": "complex64",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "image": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "phase": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "tumor_mask": {
+          "dtype": "uint8",
+          "shape": [
+            256,
+            256
+          ]
+        }
+      },
+      "files": {
+        "npz": "samples/brain-pituitary-1111.npz",
+        "image_png": "previews/brain-pituitary-1111_image.png",
+        "kspace_png": "previews/brain-pituitary-1111_kspace.png"
+      }
+    },
+    {
+      "id": "brain-pituitary-1185",
+      "title": "Brain MRI, pituitary tumor (case 1185)",
+      "collection": "BrainTumorDataPublic",
+      "collection_note": "3064 contrast-enhanced T1 brain slices with expert-drawn tumour masks; published by Cheng et al.",
+      "tags": [
+        "brain",
+        "tumour",
+        "pituitary tumor",
+        "has-mask"
+      ],
+      "source_file": "BrainTumorDataPublic/1185.mat",
+      "shape": [
+        256,
+        256
+      ],
+      "crop": "center",
+      "selection": null,
+      "acquisition": {
+        "modality": "MRI",
+        "weighting": "T1-weighted, contrast-enhanced",
+        "anatomy": "brain",
+        "plane": "axial / coronal / sagittal (varies by case)",
+        "finding": "pituitary tumor",
+        "label_code": 3,
+        "patient_id": "107429",
+        "native_shape": [
+          512,
+          512
+        ]
+      },
+      "phase": {
+        "model": "synthetic smooth phase (B0 bowl + linear ramp + coil ripples)",
+        "seed": 2676323863,
+        "strength": 1.0
+      },
+      "stats": {
+        "energy_within_r0.02": 0.727942,
+        "energy_within_r0.05": 0.834002,
+        "energy_within_r0.1": 0.904157,
+        "energy_within_r0.25": 0.978997,
+        "energy_within_r0.5": 0.996616,
+        "hermitian_asymmetry": 1.263066,
+        "kspace_dynamic_range_db": 74.52,
+        "tumor_area_px": 1295
+      },
+      "arrays": {
+        "kspace": {
+          "dtype": "complex64",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "image": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "phase": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "tumor_mask": {
+          "dtype": "uint8",
+          "shape": [
+            256,
+            256
+          ]
+        }
+      },
+      "files": {
+        "npz": "samples/brain-pituitary-1185.npz",
+        "image_png": "previews/brain-pituitary-1185_image.png",
+        "kspace_png": "previews/brain-pituitary-1185_kspace.png"
+      }
+    },
+    {
+      "id": "brain-pituitary-1296",
+      "title": "Brain MRI, pituitary tumor (case 1296)",
+      "collection": "BrainTumorDataPublic",
+      "collection_note": "3064 contrast-enhanced T1 brain slices with expert-drawn tumour masks; published by Cheng et al.",
+      "tags": [
+        "brain",
+        "tumour",
+        "pituitary tumor",
+        "has-mask"
+      ],
+      "source_file": "BrainTumorDataPublic/1296.mat",
+      "shape": [
+        256,
+        256
+      ],
+      "crop": "center",
+      "selection": null,
+      "acquisition": {
+        "modality": "MRI",
+        "weighting": "T1-weighted, contrast-enhanced",
+        "anatomy": "brain",
+        "plane": "axial / coronal / sagittal (varies by case)",
+        "finding": "pituitary tumor",
+        "label_code": 3,
+        "patient_id": "102648",
+        "native_shape": [
+          512,
+          512
+        ]
+      },
+      "phase": {
+        "model": "synthetic smooth phase (B0 bowl + linear ramp + coil ripples)",
+        "seed": 1465800946,
+        "strength": 1.0
+      },
+      "stats": {
+        "energy_within_r0.02": 0.688426,
+        "energy_within_r0.05": 0.816727,
+        "energy_within_r0.1": 0.917318,
+        "energy_within_r0.25": 0.974394,
+        "energy_within_r0.5": 0.993159,
+        "hermitian_asymmetry": 1.155842,
+        "kspace_dynamic_range_db": 66.86,
+        "tumor_area_px": 665
+      },
+      "arrays": {
+        "kspace": {
+          "dtype": "complex64",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "image": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "phase": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "tumor_mask": {
+          "dtype": "uint8",
+          "shape": [
+            256,
+            256
+          ]
+        }
+      },
+      "files": {
+        "npz": "samples/brain-pituitary-1296.npz",
+        "image_png": "previews/brain-pituitary-1296_image.png",
+        "kspace_png": "previews/brain-pituitary-1296_kspace.png"
+      }
+    },
+    {
+      "id": "nins-normal",
+      "title": "Brain MRI, Normal",
+      "collection": "NINS_Dataset",
+      "collection_note": "Clinical brain MRI slices grouped into 37 diagnosis folders (National Institute of Neurosciences dataset).",
+      "tags": [
+        "brain",
+        "normal"
+      ],
+      "source_file": "NINS_Dataset/NINS_Dataset/Normal/43459344.jpg",
+      "shape": [
+        256,
+        256
+      ],
+      "crop": "center",
+      "selection": {
+        "rule": "most brain-filled axial-looking slice",
+        "brain_fill": 0.4778,
+        "mirror_symmetry": 0.9249,
+        "candidates_scored": 120
+      },
+      "acquisition": {
+        "modality": "MRI",
+        "weighting": "unspecified (screen-captured clinical slice)",
+        "anatomy": "brain",
+        "plane": "axial (inferred from left-right symmetry)",
+        "finding": "Normal",
+        "native_shape": [
+          320,
+          240
+        ],
+        "caveat": "JPEG-compressed source; some high-frequency detail was already lost before we saw it"
+      },
+      "phase": {
+        "model": "synthetic smooth phase (B0 bowl + linear ramp + coil ripples)",
+        "seed": 1689874857,
+        "strength": 1.0
+      },
+      "stats": {
+        "energy_within_r0.02": 0.837651,
+        "energy_within_r0.05": 0.897257,
+        "energy_within_r0.1": 0.975274,
+        "energy_within_r0.25": 0.998509,
+        "energy_within_r0.5": 0.999656,
+        "hermitian_asymmetry": 1.071083,
+        "kspace_dynamic_range_db": 82.75
+      },
+      "arrays": {
+        "kspace": {
+          "dtype": "complex64",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "image": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "phase": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        }
+      },
+      "files": {
+        "npz": "samples/nins-normal.npz",
+        "image_png": "previews/nins-normal_image.png",
+        "kspace_png": "previews/nins-normal_kspace.png"
+      }
+    },
+    {
+      "id": "nins-glioma",
+      "title": "Brain MRI, Glioma",
+      "collection": "NINS_Dataset",
+      "collection_note": "Clinical brain MRI slices grouped into 37 diagnosis folders (National Institute of Neurosciences dataset).",
+      "tags": [
+        "brain",
+        "glioma"
+      ],
+      "source_file": "NINS_Dataset/NINS_Dataset/Glioma/46112021.jpg",
+      "shape": [
+        256,
+        256
+      ],
+      "crop": "center",
+      "selection": {
+        "rule": "most brain-filled axial-looking slice",
+        "brain_fill": 0.4822,
+        "mirror_symmetry": 0.9076,
+        "candidates_scored": 76
+      },
+      "acquisition": {
+        "modality": "MRI",
+        "weighting": "unspecified (screen-captured clinical slice)",
+        "anatomy": "brain",
+        "plane": "axial (inferred from left-right symmetry)",
+        "finding": "Glioma",
+        "native_shape": [
+          320,
+          240
+        ],
+        "caveat": "JPEG-compressed source; some high-frequency detail was already lost before we saw it"
+      },
+      "phase": {
+        "model": "synthetic smooth phase (B0 bowl + linear ramp + coil ripples)",
+        "seed": 2844007899,
+        "strength": 1.0
+      },
+      "stats": {
+        "energy_within_r0.02": 0.8804,
+        "energy_within_r0.05": 0.925346,
+        "energy_within_r0.1": 0.96402,
+        "energy_within_r0.25": 0.995373,
+        "energy_within_r0.5": 0.999303,
+        "hermitian_asymmetry": 1.238504,
+        "kspace_dynamic_range_db": 80.81
+      },
+      "arrays": {
+        "kspace": {
+          "dtype": "complex64",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "image": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "phase": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        }
+      },
+      "files": {
+        "npz": "samples/nins-glioma.npz",
+        "image_png": "previews/nins-glioma_image.png",
+        "kspace_png": "previews/nins-glioma_kspace.png"
+      }
+    },
+    {
+      "id": "nins-meningioma",
+      "title": "Brain MRI, meningioma",
+      "collection": "NINS_Dataset",
+      "collection_note": "Clinical brain MRI slices grouped into 37 diagnosis folders (National Institute of Neurosciences dataset).",
+      "tags": [
+        "brain",
+        "meningioma"
+      ],
+      "source_file": "NINS_Dataset/NINS_Dataset/meningioma/46694406.jpg",
+      "shape": [
+        256,
+        256
+      ],
+      "crop": "center",
+      "selection": {
+        "rule": "most brain-filled axial-looking slice",
+        "brain_fill": 0.3768,
+        "mirror_symmetry": 0.9183,
+        "candidates_scored": 76
+      },
+      "acquisition": {
+        "modality": "MRI",
+        "weighting": "unspecified (screen-captured clinical slice)",
+        "anatomy": "brain",
+        "plane": "axial (inferred from left-right symmetry)",
+        "finding": "meningioma",
+        "native_shape": [
+          320,
+          240
+        ],
+        "caveat": "JPEG-compressed source; some high-frequency detail was already lost before we saw it"
+      },
+      "phase": {
+        "model": "synthetic smooth phase (B0 bowl + linear ramp + coil ripples)",
+        "seed": 2539329536,
+        "strength": 1.0
+      },
+      "stats": {
+        "energy_within_r0.02": 0.842032,
+        "energy_within_r0.05": 0.913038,
+        "energy_within_r0.1": 0.981717,
+        "energy_within_r0.25": 0.998743,
+        "energy_within_r0.5": 0.999666,
+        "hermitian_asymmetry": 1.141034,
+        "kspace_dynamic_range_db": 81.37
+      },
+      "arrays": {
+        "kspace": {
+          "dtype": "complex64",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "image": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "phase": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        }
+      },
+      "files": {
+        "npz": "samples/nins-meningioma.npz",
+        "image_png": "previews/nins-meningioma_image.png",
+        "kspace_png": "previews/nins-meningioma_kspace.png"
+      }
+    },
+    {
+      "id": "nins-pituitary-tumor",
+      "title": "Brain MRI, pituitary tumor",
+      "collection": "NINS_Dataset",
+      "collection_note": "Clinical brain MRI slices grouped into 37 diagnosis folders (National Institute of Neurosciences dataset).",
+      "tags": [
+        "brain",
+        "pituitary-tumor"
+      ],
+      "source_file": "NINS_Dataset/NINS_Dataset/pituitary tumor/47088766.jpg",
+      "shape": [
+        256,
+        256
+      ],
+      "crop": "center",
+      "selection": {
+        "rule": "most brain-filled axial-looking slice",
+        "brain_fill": 0.6009,
+        "mirror_symmetry": 0.4113,
+        "candidates_scored": 76
+      },
+      "acquisition": {
+        "modality": "MRI",
+        "weighting": "unspecified (screen-captured clinical slice)",
+        "anatomy": "brain",
+        "plane": "sagittal / off-axial (no symmetric slice in this folder)",
+        "finding": "pituitary tumor",
+        "native_shape": [
+          320,
+          320
+        ],
+        "caveat": "JPEG-compressed source; some high-frequency detail was already lost before we saw it"
+      },
+      "phase": {
+        "model": "synthetic smooth phase (B0 bowl + linear ramp + coil ripples)",
+        "seed": 1374475821,
+        "strength": 1.0
+      },
+      "stats": {
+        "energy_within_r0.02": 0.770076,
+        "energy_within_r0.05": 0.849968,
+        "energy_within_r0.1": 0.921443,
+        "energy_within_r0.25": 0.977016,
+        "energy_within_r0.5": 0.994392,
+        "hermitian_asymmetry": 1.231955,
+        "kspace_dynamic_range_db": 69.86
+      },
+      "arrays": {
+        "kspace": {
+          "dtype": "complex64",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "image": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "phase": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        }
+      },
+      "files": {
+        "npz": "samples/nins-pituitary-tumor.npz",
+        "image_png": "previews/nins-pituitary-tumor_image.png",
+        "kspace_png": "previews/nins-pituitary-tumor_kspace.png"
+      }
+    },
+    {
+      "id": "nins-brain-tumor",
+      "title": "Brain MRI, Brain Tumor",
+      "collection": "NINS_Dataset",
+      "collection_note": "Clinical brain MRI slices grouped into 37 diagnosis folders (National Institute of Neurosciences dataset).",
+      "tags": [
+        "brain",
+        "brain-tumor"
+      ],
+      "source_file": "NINS_Dataset/NINS_Dataset/Brain Tumor/44019927.jpg",
+      "shape": [
+        256,
+        256
+      ],
+      "crop": "center",
+      "selection": {
+        "rule": "most brain-filled axial-looking slice",
+        "brain_fill": 0.5376,
+        "mirror_symmetry": 0.9015,
+        "candidates_scored": 76
+      },
+      "acquisition": {
+        "modality": "MRI",
+        "weighting": "unspecified (screen-captured clinical slice)",
+        "anatomy": "brain",
+        "plane": "axial (inferred from left-right symmetry)",
+        "finding": "Brain Tumor",
+        "native_shape": [
+          320,
+          240
+        ],
+        "caveat": "JPEG-compressed source; some high-frequency detail was already lost before we saw it"
+      },
+      "phase": {
+        "model": "synthetic smooth phase (B0 bowl + linear ramp + coil ripples)",
+        "seed": 4254922960,
+        "strength": 1.0
+      },
+      "stats": {
+        "energy_within_r0.02": 0.85278,
+        "energy_within_r0.05": 0.929265,
+        "energy_within_r0.1": 0.962665,
+        "energy_within_r0.25": 0.991911,
+        "energy_within_r0.5": 0.998288,
+        "hermitian_asymmetry": 1.292897,
+        "kspace_dynamic_range_db": 78.37
+      },
+      "arrays": {
+        "kspace": {
+          "dtype": "complex64",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "image": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "phase": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        }
+      },
+      "files": {
+        "npz": "samples/nins-brain-tumor.npz",
+        "image_png": "previews/nins-brain-tumor_image.png",
+        "kspace_png": "previews/nins-brain-tumor_kspace.png"
+      }
+    },
+    {
+      "id": "nins-stroke-infarct",
+      "title": "Brain MRI, Stroke(infarct)",
+      "collection": "NINS_Dataset",
+      "collection_note": "Clinical brain MRI slices grouped into 37 diagnosis folders (National Institute of Neurosciences dataset).",
+      "tags": [
+        "brain",
+        "stroke-infarct"
+      ],
+      "source_file": "NINS_Dataset/NINS_Dataset/Stroke(infarct)/43222733.jpg",
+      "shape": [
+        256,
+        256
+      ],
+      "crop": "center",
+      "selection": {
+        "rule": "most brain-filled axial-looking slice",
+        "brain_fill": 0.4188,
+        "mirror_symmetry": 0.9081,
+        "candidates_scored": 120
+      },
+      "acquisition": {
+        "modality": "MRI",
+        "weighting": "unspecified (screen-captured clinical slice)",
+        "anatomy": "brain",
+        "plane": "axial (inferred from left-right symmetry)",
+        "finding": "Stroke(infarct)",
+        "native_shape": [
+          320,
+          240
+        ],
+        "caveat": "JPEG-compressed source; some high-frequency detail was already lost before we saw it"
+      },
+      "phase": {
+        "model": "synthetic smooth phase (B0 bowl + linear ramp + coil ripples)",
+        "seed": 1814793216,
+        "strength": 1.0
+      },
+      "stats": {
+        "energy_within_r0.02": 0.902173,
+        "energy_within_r0.05": 0.939919,
+        "energy_within_r0.1": 0.972148,
+        "energy_within_r0.25": 0.997565,
+        "energy_within_r0.5": 0.999608,
+        "hermitian_asymmetry": 1.024865,
+        "kspace_dynamic_range_db": 81.81
+      },
+      "arrays": {
+        "kspace": {
+          "dtype": "complex64",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "image": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "phase": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        }
+      },
+      "files": {
+        "npz": "samples/nins-stroke-infarct.npz",
+        "image_png": "previews/nins-stroke-infarct_image.png",
+        "kspace_png": "previews/nins-stroke-infarct_kspace.png"
+      }
+    },
+    {
+      "id": "nins-stroke-haemorrhage",
+      "title": "Brain MRI, Stroke (Haemorrhage)",
+      "collection": "NINS_Dataset",
+      "collection_note": "Clinical brain MRI slices grouped into 37 diagnosis folders (National Institute of Neurosciences dataset).",
+      "tags": [
+        "brain",
+        "stroke-haemorrhage"
+      ],
+      "source_file": "NINS_Dataset/NINS_Dataset/Stroke (Haemorrhage)/44750737.jpg",
+      "shape": [
+        256,
+        256
+      ],
+      "crop": "center",
+      "selection": {
+        "rule": "most brain-filled axial-looking slice",
+        "brain_fill": 0.4605,
+        "mirror_symmetry": 0.914,
+        "candidates_scored": 120
+      },
+      "acquisition": {
+        "modality": "MRI",
+        "weighting": "unspecified (screen-captured clinical slice)",
+        "anatomy": "brain",
+        "plane": "axial (inferred from left-right symmetry)",
+        "finding": "Stroke (Haemorrhage)",
+        "native_shape": [
+          320,
+          240
+        ],
+        "caveat": "JPEG-compressed source; some high-frequency detail was already lost before we saw it"
+      },
+      "phase": {
+        "model": "synthetic smooth phase (B0 bowl + linear ramp + coil ripples)",
+        "seed": 4019999626,
+        "strength": 1.0
+      },
+      "stats": {
+        "energy_within_r0.02": 0.919684,
+        "energy_within_r0.05": 0.944359,
+        "energy_within_r0.1": 0.962362,
+        "energy_within_r0.25": 0.996541,
+        "energy_within_r0.5": 0.999495,
+        "hermitian_asymmetry": 0.96326,
+        "kspace_dynamic_range_db": 82.58
+      },
+      "arrays": {
+        "kspace": {
+          "dtype": "complex64",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "image": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "phase": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        }
+      },
+      "files": {
+        "npz": "samples/nins-stroke-haemorrhage.npz",
+        "image_png": "previews/nins-stroke-haemorrhage_image.png",
+        "kspace_png": "previews/nins-stroke-haemorrhage_kspace.png"
+      }
+    },
+    {
+      "id": "nins-cerebral-hemorrhage",
+      "title": "Brain MRI, Cerebral Hemorrhage",
+      "collection": "NINS_Dataset",
+      "collection_note": "Clinical brain MRI slices grouped into 37 diagnosis folders (National Institute of Neurosciences dataset).",
+      "tags": [
+        "brain",
+        "cerebral-hemorrhage"
+      ],
+      "source_file": "NINS_Dataset/NINS_Dataset/Cerebral Hemorrhage/43083783.jpg",
+      "shape": [
+        256,
+        256
+      ],
+      "crop": "center",
+      "selection": {
+        "rule": "most brain-filled axial-looking slice",
+        "brain_fill": 0.5354,
+        "mirror_symmetry": 0.9074,
+        "candidates_scored": 36
+      },
+      "acquisition": {
+        "modality": "MRI",
+        "weighting": "unspecified (screen-captured clinical slice)",
+        "anatomy": "brain",
+        "plane": "axial (inferred from left-right symmetry)",
+        "finding": "Cerebral Hemorrhage",
+        "native_shape": [
+          320,
+          240
+        ],
+        "caveat": "JPEG-compressed source; some high-frequency detail was already lost before we saw it"
+      },
+      "phase": {
+        "model": "synthetic smooth phase (B0 bowl + linear ramp + coil ripples)",
+        "seed": 497664797,
+        "strength": 1.0
+      },
+      "stats": {
+        "energy_within_r0.02": 0.865317,
+        "energy_within_r0.05": 0.904139,
+        "energy_within_r0.1": 0.943847,
+        "energy_within_r0.25": 0.987497,
+        "energy_within_r0.5": 0.997839,
+        "hermitian_asymmetry": 1.178986,
+        "kspace_dynamic_range_db": 75.98
+      },
+      "arrays": {
+        "kspace": {
+          "dtype": "complex64",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "image": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "phase": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        }
+      },
+      "files": {
+        "npz": "samples/nins-cerebral-hemorrhage.npz",
+        "image_png": "previews/nins-cerebral-hemorrhage_image.png",
+        "kspace_png": "previews/nins-cerebral-hemorrhage_kspace.png"
+      }
+    },
+    {
+      "id": "nins-obstructive-hydrocephalus",
+      "title": "Brain MRI, Obstructive Hydrocephalus",
+      "collection": "NINS_Dataset",
+      "collection_note": "Clinical brain MRI slices grouped into 37 diagnosis folders (National Institute of Neurosciences dataset).",
+      "tags": [
+        "brain",
+        "obstructive-hydrocephalus"
+      ],
+      "source_file": "NINS_Dataset/NINS_Dataset/Obstructive Hydrocephalus/44457573.jpg",
+      "shape": [
+        256,
+        256
+      ],
+      "crop": "center",
+      "selection": {
+        "rule": "most brain-filled axial-looking slice",
+        "brain_fill": 0.3958,
+        "mirror_symmetry": 0.9448,
+        "candidates_scored": 76
+      },
+      "acquisition": {
+        "modality": "MRI",
+        "weighting": "unspecified (screen-captured clinical slice)",
+        "anatomy": "brain",
+        "plane": "axial (inferred from left-right symmetry)",
+        "finding": "Obstructive Hydrocephalus",
+        "native_shape": [
+          320,
+          240
+        ],
+        "caveat": "JPEG-compressed source; some high-frequency detail was already lost before we saw it"
+      },
+      "phase": {
+        "model": "synthetic smooth phase (B0 bowl + linear ramp + coil ripples)",
+        "seed": 3035782446,
+        "strength": 1.0
+      },
+      "stats": {
+        "energy_within_r0.02": 0.944571,
+        "energy_within_r0.05": 0.979165,
+        "energy_within_r0.1": 0.988694,
+        "energy_within_r0.25": 0.998922,
+        "energy_within_r0.5": 0.999773,
+        "hermitian_asymmetry": 1.001261,
+        "kspace_dynamic_range_db": 84.67
+      },
+      "arrays": {
+        "kspace": {
+          "dtype": "complex64",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "image": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "phase": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        }
+      },
+      "files": {
+        "npz": "samples/nins-obstructive-hydrocephalus.npz",
+        "image_png": "previews/nins-obstructive-hydrocephalus_image.png",
+        "kspace_png": "previews/nins-obstructive-hydrocephalus_kspace.png"
+      }
+    },
+    {
+      "id": "nins-mid-triventricular-hydrocephalus",
+      "title": "Brain MRI, Mid triventricular hydrocephalus",
+      "collection": "NINS_Dataset",
+      "collection_note": "Clinical brain MRI slices grouped into 37 diagnosis folders (National Institute of Neurosciences dataset).",
+      "tags": [
+        "brain",
+        "mid-triventricular-hydrocephalus"
+      ],
+      "source_file": "NINS_Dataset/NINS_Dataset/Mid triventricular hydrocephalus/95561304.jpg",
+      "shape": [
+        256,
+        256
+      ],
+      "crop": "center",
+      "selection": {
+        "rule": "most brain-filled axial-looking slice",
+        "brain_fill": 0.595,
+        "mirror_symmetry": 0.4978,
+        "candidates_scored": 38
+      },
+      "acquisition": {
+        "modality": "MRI",
+        "weighting": "unspecified (screen-captured clinical slice)",
+        "anatomy": "brain",
+        "plane": "sagittal / off-axial (no symmetric slice in this folder)",
+        "finding": "Mid triventricular hydrocephalus",
+        "native_shape": [
+          320,
+          320
+        ],
+        "caveat": "JPEG-compressed source; some high-frequency detail was already lost before we saw it"
+      },
+      "phase": {
+        "model": "synthetic smooth phase (B0 bowl + linear ramp + coil ripples)",
+        "seed": 3385927935,
+        "strength": 1.0
+      },
+      "stats": {
+        "energy_within_r0.02": 0.741655,
+        "energy_within_r0.05": 0.842913,
+        "energy_within_r0.1": 0.928705,
+        "energy_within_r0.25": 0.983097,
+        "energy_within_r0.5": 0.995944,
+        "hermitian_asymmetry": 1.162631,
+        "kspace_dynamic_range_db": 71.79
+      },
+      "arrays": {
+        "kspace": {
+          "dtype": "complex64",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "image": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "phase": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        }
+      },
+      "files": {
+        "npz": "samples/nins-mid-triventricular-hydrocephalus.npz",
+        "image_png": "previews/nins-mid-triventricular-hydrocephalus_image.png",
+        "kspace_png": "previews/nins-mid-triventricular-hydrocephalus_kspace.png"
+      }
+    },
+    {
+      "id": "nins-brain-atrophy",
+      "title": "Brain MRI, Brain Atrophy",
+      "collection": "NINS_Dataset",
+      "collection_note": "Clinical brain MRI slices grouped into 37 diagnosis folders (National Institute of Neurosciences dataset).",
+      "tags": [
+        "brain",
+        "brain-atrophy"
+      ],
+      "source_file": "NINS_Dataset/NINS_Dataset/Brain Atrophy/46115845.jpg",
+      "shape": [
+        256,
+        256
+      ],
+      "crop": "center",
+      "selection": {
+        "rule": "most brain-filled axial-looking slice",
+        "brain_fill": 0.5214,
+        "mirror_symmetry": 0.9228,
+        "candidates_scored": 120
+      },
+      "acquisition": {
+        "modality": "MRI",
+        "weighting": "unspecified (screen-captured clinical slice)",
+        "anatomy": "brain",
+        "plane": "axial (inferred from left-right symmetry)",
+        "finding": "Brain Atrophy",
+        "native_shape": [
+          320,
+          240
+        ],
+        "caveat": "JPEG-compressed source; some high-frequency detail was already lost before we saw it"
+      },
+      "phase": {
+        "model": "synthetic smooth phase (B0 bowl + linear ramp + coil ripples)",
+        "seed": 3901620994,
+        "strength": 1.0
+      },
+      "stats": {
+        "energy_within_r0.02": 0.830784,
+        "energy_within_r0.05": 0.899652,
+        "energy_within_r0.1": 0.956599,
+        "energy_within_r0.25": 0.993341,
+        "energy_within_r0.5": 0.999046,
+        "hermitian_asymmetry": 1.337356,
+        "kspace_dynamic_range_db": 80.73
+      },
+      "arrays": {
+        "kspace": {
+          "dtype": "complex64",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "image": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "phase": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        }
+      },
+      "files": {
+        "npz": "samples/nins-brain-atrophy.npz",
+        "image_png": "previews/nins-brain-atrophy_image.png",
+        "kspace_png": "previews/nins-brain-atrophy_kspace.png"
+      }
+    },
+    {
+      "id": "nins-white-matter-disease",
+      "title": "Brain MRI, White Matter Disease",
+      "collection": "NINS_Dataset",
+      "collection_note": "Clinical brain MRI slices grouped into 37 diagnosis folders (National Institute of Neurosciences dataset).",
+      "tags": [
+        "brain",
+        "white-matter-disease"
+      ],
+      "source_file": "NINS_Dataset/NINS_Dataset/White Matter Disease/95608285.jpg",
+      "shape": [
+        256,
+        256
+      ],
+      "crop": "center",
+      "selection": {
+        "rule": "most brain-filled axial-looking slice",
+        "brain_fill": 0.5789,
+        "mirror_symmetry": 0.5839,
+        "candidates_scored": 36
+      },
+      "acquisition": {
+        "modality": "MRI",
+        "weighting": "unspecified (screen-captured clinical slice)",
+        "anatomy": "brain",
+        "plane": "sagittal / off-axial (no symmetric slice in this folder)",
+        "finding": "White Matter Disease",
+        "native_shape": [
+          384,
+          384
+        ],
+        "caveat": "JPEG-compressed source; some high-frequency detail was already lost before we saw it"
+      },
+      "phase": {
+        "model": "synthetic smooth phase (B0 bowl + linear ramp + coil ripples)",
+        "seed": 2864909128,
+        "strength": 1.0
+      },
+      "stats": {
+        "energy_within_r0.02": 0.732988,
+        "energy_within_r0.05": 0.860454,
+        "energy_within_r0.1": 0.925295,
+        "energy_within_r0.25": 0.969811,
+        "energy_within_r0.5": 0.991231,
+        "hermitian_asymmetry": 1.41268,
+        "kspace_dynamic_range_db": 68.33
+      },
+      "arrays": {
+        "kspace": {
+          "dtype": "complex64",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "image": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "phase": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        }
+      },
+      "files": {
+        "npz": "samples/nins-white-matter-disease.npz",
+        "image_png": "previews/nins-white-matter-disease_image.png",
+        "kspace_png": "previews/nins-white-matter-disease_kspace.png"
+      }
+    },
+    {
+      "id": "nins-malformation-chiari-i",
+      "title": "Brain MRI, Malformation (Chiari I)",
+      "collection": "NINS_Dataset",
+      "collection_note": "Clinical brain MRI slices grouped into 37 diagnosis folders (National Institute of Neurosciences dataset).",
+      "tags": [
+        "brain",
+        "malformation-chiari-i"
+      ],
+      "source_file": "NINS_Dataset/NINS_Dataset/Malformation (Chiari I)/58782486.jpg",
+      "shape": [
+        256,
+        256
+      ],
+      "crop": "center",
+      "selection": {
+        "rule": "most brain-filled axial-looking slice",
+        "brain_fill": 0.5084,
+        "mirror_symmetry": 0.3977,
+        "candidates_scored": 38
+      },
+      "acquisition": {
+        "modality": "MRI",
+        "weighting": "unspecified (screen-captured clinical slice)",
+        "anatomy": "brain",
+        "plane": "sagittal / off-axial (no symmetric slice in this folder)",
+        "finding": "Malformation (Chiari I)",
+        "native_shape": [
+          320,
+          320
+        ],
+        "caveat": "JPEG-compressed source; some high-frequency detail was already lost before we saw it"
+      },
+      "phase": {
+        "model": "synthetic smooth phase (B0 bowl + linear ramp + coil ripples)",
+        "seed": 4066764972,
+        "strength": 1.0
+      },
+      "stats": {
+        "energy_within_r0.02": 0.736492,
+        "energy_within_r0.05": 0.831533,
+        "energy_within_r0.1": 0.885365,
+        "energy_within_r0.25": 0.970136,
+        "energy_within_r0.5": 0.994532,
+        "hermitian_asymmetry": 1.30712,
+        "kspace_dynamic_range_db": 69.18
+      },
+      "arrays": {
+        "kspace": {
+          "dtype": "complex64",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "image": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "phase": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        }
+      },
+      "files": {
+        "npz": "samples/nins-malformation-chiari-i.npz",
+        "image_png": "previews/nins-malformation-chiari-i_image.png",
+        "kspace_png": "previews/nins-malformation-chiari-i_kspace.png"
+      }
+    },
+    {
+      "id": "nins-cerebral-abscess",
+      "title": "Brain MRI, Cerebral abscess",
+      "collection": "NINS_Dataset",
+      "collection_note": "Clinical brain MRI slices grouped into 37 diagnosis folders (National Institute of Neurosciences dataset).",
+      "tags": [
+        "brain",
+        "cerebral-abscess"
+      ],
+      "source_file": "NINS_Dataset/NINS_Dataset/Cerebral abscess/46582020.jpg",
+      "shape": [
+        256,
+        256
+      ],
+      "crop": "center",
+      "selection": {
+        "rule": "most brain-filled axial-looking slice",
+        "brain_fill": 0.436,
+        "mirror_symmetry": 0.9048,
+        "candidates_scored": 36
+      },
+      "acquisition": {
+        "modality": "MRI",
+        "weighting": "unspecified (screen-captured clinical slice)",
+        "anatomy": "brain",
+        "plane": "axial (inferred from left-right symmetry)",
+        "finding": "Cerebral abscess",
+        "native_shape": [
+          320,
+          240
+        ],
+        "caveat": "JPEG-compressed source; some high-frequency detail was already lost before we saw it"
+      },
+      "phase": {
+        "model": "synthetic smooth phase (B0 bowl + linear ramp + coil ripples)",
+        "seed": 4118183885,
+        "strength": 1.0
+      },
+      "stats": {
+        "energy_within_r0.02": 0.885122,
+        "energy_within_r0.05": 0.956893,
+        "energy_within_r0.1": 0.968341,
+        "energy_within_r0.25": 0.988292,
+        "energy_within_r0.5": 0.99853,
+        "hermitian_asymmetry": 1.093415,
+        "kspace_dynamic_range_db": 78.54
+      },
+      "arrays": {
+        "kspace": {
+          "dtype": "complex64",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "image": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "phase": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        }
+      },
+      "files": {
+        "npz": "samples/nins-cerebral-abscess.npz",
+        "image_png": "previews/nins-cerebral-abscess_image.png",
+        "kspace_png": "previews/nins-cerebral-abscess_kspace.png"
+      }
+    },
+    {
+      "id": "spine-0001-t1-sagittal",
+      "title": "Lumbar spine, T1 sagittal (patient 0001)",
+      "collection": "MRI_Dataset",
+      "collection_note": "Real anonymised Siemens 1.5 T lumbar-spine studies, stored as DICOM with full acquisition parameters.",
+      "tags": [
+        "spine",
+        "t1",
+        "dicom",
+        "real-scan"
+      ],
+      "source_file": "MRI_Dataset/0001/L-SPINE_LSS_20160309_091629_240000/T1_TSE_SAG_320_0003/T1_TSE_SAG__0001_008.ima",
+      "shape": [
+        256,
+        256
+      ],
+      "crop": "content",
+      "selection": null,
+      "acquisition": {
+        "modality": "MR",
+        "series": "t1_tse_sag_320",
+        "anatomy": "lumbar spine",
+        "plane": "sagittal",
+        "weighting": "T1-weighted",
+        "echo_time_ms": 9.2,
+        "repetition_time_ms": 620.0,
+        "field_strength_T": 1.5,
+        "slice_thickness_mm": 4.0,
+        "pixel_spacing_mm": [
+          0.875,
+          0.875
+        ],
+        "scanning_sequence": "SE",
+        "native_shape": [
+          320,
+          320
+        ],
+        "note": "real clinical DICOM, anonymised in the source dataset"
+      },
+      "phase": {
+        "model": "synthetic smooth phase (B0 bowl + linear ramp + coil ripples)",
+        "seed": 2196688710,
+        "strength": 1.0
+      },
+      "stats": {
+        "energy_within_r0.02": 0.651108,
+        "energy_within_r0.05": 0.858213,
+        "energy_within_r0.1": 0.923097,
+        "energy_within_r0.25": 0.973227,
+        "energy_within_r0.5": 0.994024,
+        "hermitian_asymmetry": 1.392822,
+        "kspace_dynamic_range_db": 67.9
+      },
+      "arrays": {
+        "kspace": {
+          "dtype": "complex64",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "image": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "phase": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        }
+      },
+      "files": {
+        "npz": "samples/spine-0001-t1-sagittal.npz",
+        "image_png": "previews/spine-0001-t1-sagittal_image.png",
+        "kspace_png": "previews/spine-0001-t1-sagittal_kspace.png"
+      }
+    },
+    {
+      "id": "spine-0001-t2-sagittal",
+      "title": "Lumbar spine, T2 sagittal (patient 0001)",
+      "collection": "MRI_Dataset",
+      "collection_note": "Real anonymised Siemens 1.5 T lumbar-spine studies, stored as DICOM with full acquisition parameters.",
+      "tags": [
+        "spine",
+        "t2",
+        "dicom",
+        "real-scan"
+      ],
+      "source_file": "MRI_Dataset/0001/L-SPINE_LSS_20160309_091629_240000/T2_TSE_SAG_384_0002/T2_TSE_SAG__0001_008.ima",
+      "shape": [
+        256,
+        256
+      ],
+      "crop": "content",
+      "selection": null,
+      "acquisition": {
+        "modality": "MR",
+        "series": "t2_tse_sag_384",
+        "anatomy": "lumbar spine",
+        "plane": "sagittal",
+        "weighting": "T2-weighted",
+        "echo_time_ms": 94.0,
+        "repetition_time_ms": 3370.0,
+        "field_strength_T": 1.5,
+        "slice_thickness_mm": 4.0,
+        "pixel_spacing_mm": [
+          0.72916668653488,
+          0.72916668653488
+        ],
+        "scanning_sequence": "SE",
+        "native_shape": [
+          384,
+          384
+        ],
+        "note": "real clinical DICOM, anonymised in the source dataset"
+      },
+      "phase": {
+        "model": "synthetic smooth phase (B0 bowl + linear ramp + coil ripples)",
+        "seed": 3158235269,
+        "strength": 1.0
+      },
+      "stats": {
+        "energy_within_r0.02": 0.63172,
+        "energy_within_r0.05": 0.83535,
+        "energy_within_r0.1": 0.899573,
+        "energy_within_r0.25": 0.967421,
+        "energy_within_r0.5": 0.990982,
+        "hermitian_asymmetry": 1.201568,
+        "kspace_dynamic_range_db": 65.33
+      },
+      "arrays": {
+        "kspace": {
+          "dtype": "complex64",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "image": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "phase": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        }
+      },
+      "files": {
+        "npz": "samples/spine-0001-t2-sagittal.npz",
+        "image_png": "previews/spine-0001-t2-sagittal_image.png",
+        "kspace_png": "previews/spine-0001-t2-sagittal_kspace.png"
+      }
+    },
+    {
+      "id": "spine-0001-t1-axial",
+      "title": "Lumbar spine, T1 axial (patient 0001)",
+      "collection": "MRI_Dataset",
+      "collection_note": "Real anonymised Siemens 1.5 T lumbar-spine studies, stored as DICOM with full acquisition parameters.",
+      "tags": [
+        "spine",
+        "t1",
+        "dicom",
+        "real-scan"
+      ],
+      "source_file": "MRI_Dataset/0001/L-SPINE_LSS_20160309_091629_240000/T1_TSE_TRA_0005/T1_TSE_TRA__0001_007.ima",
+      "shape": [
+        256,
+        256
+      ],
+      "crop": "content",
+      "selection": null,
+      "acquisition": {
+        "modality": "MR",
+        "series": "t1_tse_tra",
+        "anatomy": "lumbar spine",
+        "plane": "axial",
+        "weighting": "T1-weighted",
+        "echo_time_ms": 11.0,
+        "repetition_time_ms": 715.0,
+        "field_strength_T": 1.5,
+        "slice_thickness_mm": 4.0,
+        "pixel_spacing_mm": [
+          0.6875,
+          0.6875
+        ],
+        "scanning_sequence": "SE",
+        "native_shape": [
+          320,
+          320
+        ],
+        "note": "real clinical DICOM, anonymised in the source dataset"
+      },
+      "phase": {
+        "model": "synthetic smooth phase (B0 bowl + linear ramp + coil ripples)",
+        "seed": 4196509424,
+        "strength": 1.0
+      },
+      "stats": {
+        "energy_within_r0.02": 0.67287,
+        "energy_within_r0.05": 0.887047,
+        "energy_within_r0.1": 0.945055,
+        "energy_within_r0.25": 0.980726,
+        "energy_within_r0.5": 0.993384,
+        "hermitian_asymmetry": 1.554741,
+        "kspace_dynamic_range_db": 68.92
+      },
+      "arrays": {
+        "kspace": {
+          "dtype": "complex64",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "image": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "phase": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        }
+      },
+      "files": {
+        "npz": "samples/spine-0001-t1-axial.npz",
+        "image_png": "previews/spine-0001-t1-axial_image.png",
+        "kspace_png": "previews/spine-0001-t1-axial_kspace.png"
+      }
+    },
+    {
+      "id": "spine-0001-t2-axial",
+      "title": "Lumbar spine, T2 axial (patient 0001)",
+      "collection": "MRI_Dataset",
+      "collection_note": "Real anonymised Siemens 1.5 T lumbar-spine studies, stored as DICOM with full acquisition parameters.",
+      "tags": [
+        "spine",
+        "t2",
+        "dicom",
+        "real-scan"
+      ],
+      "source_file": "MRI_Dataset/0001/L-SPINE_LSS_20160309_091629_240000/T2_TSE_TRA_384_0004/T2_TSE_TRA__0001_007.ima",
+      "shape": [
+        256,
+        256
+      ],
+      "crop": "content",
+      "selection": null,
+      "acquisition": {
+        "modality": "MR",
+        "series": "t2_tse_tra_384",
+        "anatomy": "lumbar spine",
+        "plane": "axial",
+        "weighting": "T2-weighted",
+        "echo_time_ms": 88.0,
+        "repetition_time_ms": 2700.0,
+        "field_strength_T": 1.5,
+        "slice_thickness_mm": 4.0,
+        "pixel_spacing_mm": [
+          0.6875,
+          0.6875
+        ],
+        "scanning_sequence": "SE",
+        "native_shape": [
+          320,
+          320
+        ],
+        "note": "real clinical DICOM, anonymised in the source dataset"
+      },
+      "phase": {
+        "model": "synthetic smooth phase (B0 bowl + linear ramp + coil ripples)",
+        "seed": 3973518929,
+        "strength": 1.0
+      },
+      "stats": {
+        "energy_within_r0.02": 0.68536,
+        "energy_within_r0.05": 0.895383,
+        "energy_within_r0.1": 0.945752,
+        "energy_within_r0.25": 0.981775,
+        "energy_within_r0.5": 0.993686,
+        "hermitian_asymmetry": 1.684518,
+        "kspace_dynamic_range_db": 68.24
+      },
+      "arrays": {
+        "kspace": {
+          "dtype": "complex64",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "image": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "phase": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        }
+      },
+      "files": {
+        "npz": "samples/spine-0001-t2-axial.npz",
+        "image_png": "previews/spine-0001-t2-axial_image.png",
+        "kspace_png": "previews/spine-0001-t2-axial_kspace.png"
+      }
+    },
+    {
+      "id": "spine-0003-t1-sagittal",
+      "title": "Lumbar spine, T1 sagittal (patient 0003)",
+      "collection": "MRI_Dataset",
+      "collection_note": "Real anonymised Siemens 1.5 T lumbar-spine studies, stored as DICOM with full acquisition parameters.",
+      "tags": [
+        "spine",
+        "t1",
+        "dicom",
+        "real-scan"
+      ],
+      "source_file": "MRI_Dataset/0003/L-SPINE_LSS_20160411_134646_314000/T1_TSE_SAG_320_0003/T1_TSE_SAG__0003_008.ima",
+      "shape": [
+        256,
+        256
+      ],
+      "crop": "content",
+      "selection": null,
+      "acquisition": {
+        "modality": "MR",
+        "series": "t1_tse_sag_320",
+        "anatomy": "lumbar spine",
+        "plane": "sagittal",
+        "weighting": "T1-weighted",
+        "echo_time_ms": 9.2,
+        "repetition_time_ms": 620.0,
+        "field_strength_T": 1.5,
+        "slice_thickness_mm": 4.0,
+        "pixel_spacing_mm": [
+          0.875,
+          0.875
+        ],
+        "scanning_sequence": "SE",
+        "native_shape": [
+          320,
+          320
+        ],
+        "note": "real clinical DICOM, anonymised in the source dataset"
+      },
+      "phase": {
+        "model": "synthetic smooth phase (B0 bowl + linear ramp + coil ripples)",
+        "seed": 1286157556,
+        "strength": 1.0
+      },
+      "stats": {
+        "energy_within_r0.02": 0.657434,
+        "energy_within_r0.05": 0.788841,
+        "energy_within_r0.1": 0.892448,
+        "energy_within_r0.25": 0.960277,
+        "energy_within_r0.5": 0.989279,
+        "hermitian_asymmetry": 1.224385,
+        "kspace_dynamic_range_db": 66.4
+      },
+      "arrays": {
+        "kspace": {
+          "dtype": "complex64",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "image": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "phase": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        }
+      },
+      "files": {
+        "npz": "samples/spine-0003-t1-sagittal.npz",
+        "image_png": "previews/spine-0003-t1-sagittal_image.png",
+        "kspace_png": "previews/spine-0003-t1-sagittal_kspace.png"
+      }
+    },
+    {
+      "id": "spine-0003-t2-sagittal",
+      "title": "Lumbar spine, T2 sagittal (patient 0003)",
+      "collection": "MRI_Dataset",
+      "collection_note": "Real anonymised Siemens 1.5 T lumbar-spine studies, stored as DICOM with full acquisition parameters.",
+      "tags": [
+        "spine",
+        "t2",
+        "dicom",
+        "real-scan"
+      ],
+      "source_file": "MRI_Dataset/0003/L-SPINE_LSS_20160411_134646_314000/T2_TSE_SAG_384_0002/T2_TSE_SAG__0003_008.ima",
+      "shape": [
+        256,
+        256
+      ],
+      "crop": "content",
+      "selection": null,
+      "acquisition": {
+        "modality": "MR",
+        "series": "t2_tse_sag_384",
+        "anatomy": "lumbar spine",
+        "plane": "sagittal",
+        "weighting": "T2-weighted",
+        "echo_time_ms": 94.0,
+        "repetition_time_ms": 3370.0,
+        "field_strength_T": 1.5,
+        "slice_thickness_mm": 4.0,
+        "pixel_spacing_mm": [
+          0.72916668653488,
+          0.72916668653488
+        ],
+        "scanning_sequence": "SE",
+        "native_shape": [
+          384,
+          384
+        ],
+        "note": "real clinical DICOM, anonymised in the source dataset"
+      },
+      "phase": {
+        "model": "synthetic smooth phase (B0 bowl + linear ramp + coil ripples)",
+        "seed": 3385450423,
+        "strength": 1.0
+      },
+      "stats": {
+        "energy_within_r0.02": 0.591432,
+        "energy_within_r0.05": 0.751163,
+        "energy_within_r0.1": 0.869476,
+        "energy_within_r0.25": 0.952575,
+        "energy_within_r0.5": 0.985283,
+        "hermitian_asymmetry": 1.433981,
+        "kspace_dynamic_range_db": 62.2
+      },
+      "arrays": {
+        "kspace": {
+          "dtype": "complex64",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "image": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "phase": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        }
+      },
+      "files": {
+        "npz": "samples/spine-0003-t2-sagittal.npz",
+        "image_png": "previews/spine-0003-t2-sagittal_image.png",
+        "kspace_png": "previews/spine-0003-t2-sagittal_kspace.png"
+      }
+    },
+    {
+      "id": "spine-0003-t1-axial",
+      "title": "Lumbar spine, T1 axial (patient 0003)",
+      "collection": "MRI_Dataset",
+      "collection_note": "Real anonymised Siemens 1.5 T lumbar-spine studies, stored as DICOM with full acquisition parameters.",
+      "tags": [
+        "spine",
+        "t1",
+        "dicom",
+        "real-scan"
+      ],
+      "source_file": "MRI_Dataset/0003/L-SPINE_LSS_20160411_134646_314000/T1_TSE_TRA_0005/T1_TSE_TRA__0003_008.ima",
+      "shape": [
+        256,
+        256
+      ],
+      "crop": "content",
+      "selection": null,
+      "acquisition": {
+        "modality": "MR",
+        "series": "t1_tse_tra",
+        "anatomy": "lumbar spine",
+        "plane": "axial",
+        "weighting": "T1-weighted",
+        "echo_time_ms": 11.0,
+        "repetition_time_ms": 715.0,
+        "field_strength_T": 1.5,
+        "slice_thickness_mm": 4.0,
+        "pixel_spacing_mm": [
+          0.6875,
+          0.6875
+        ],
+        "scanning_sequence": "SE",
+        "native_shape": [
+          320,
+          320
+        ],
+        "note": "real clinical DICOM, anonymised in the source dataset"
+      },
+      "phase": {
+        "model": "synthetic smooth phase (B0 bowl + linear ramp + coil ripples)",
+        "seed": 2103820970,
+        "strength": 1.0
+      },
+      "stats": {
+        "energy_within_r0.02": 0.790621,
+        "energy_within_r0.05": 0.922414,
+        "energy_within_r0.1": 0.955901,
+        "energy_within_r0.25": 0.983589,
+        "energy_within_r0.5": 0.994291,
+        "hermitian_asymmetry": 1.314021,
+        "kspace_dynamic_range_db": 70.31
+      },
+      "arrays": {
+        "kspace": {
+          "dtype": "complex64",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "image": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "phase": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        }
+      },
+      "files": {
+        "npz": "samples/spine-0003-t1-axial.npz",
+        "image_png": "previews/spine-0003-t1-axial_image.png",
+        "kspace_png": "previews/spine-0003-t1-axial_kspace.png"
+      }
+    },
+    {
+      "id": "spine-0003-t2-axial",
+      "title": "Lumbar spine, T2 axial (patient 0003)",
+      "collection": "MRI_Dataset",
+      "collection_note": "Real anonymised Siemens 1.5 T lumbar-spine studies, stored as DICOM with full acquisition parameters.",
+      "tags": [
+        "spine",
+        "t2",
+        "dicom",
+        "real-scan"
+      ],
+      "source_file": "MRI_Dataset/0003/L-SPINE_LSS_20160411_134646_314000/T2_TSE_TRA_384_0004/T2_TSE_TRA__0003_008.ima",
+      "shape": [
+        256,
+        256
+      ],
+      "crop": "content",
+      "selection": null,
+      "acquisition": {
+        "modality": "MR",
+        "series": "t2_tse_tra_384",
+        "anatomy": "lumbar spine",
+        "plane": "axial",
+        "weighting": "T2-weighted",
+        "echo_time_ms": 88.0,
+        "repetition_time_ms": 4000.0,
+        "field_strength_T": 1.5,
+        "slice_thickness_mm": 4.0,
+        "pixel_spacing_mm": [
+          0.6875,
+          0.6875
+        ],
+        "scanning_sequence": "SE",
+        "native_shape": [
+          320,
+          320
+        ],
+        "note": "real clinical DICOM, anonymised in the source dataset"
+      },
+      "phase": {
+        "model": "synthetic smooth phase (B0 bowl + linear ramp + coil ripples)",
+        "seed": 3890051015,
+        "strength": 1.0
+      },
+      "stats": {
+        "energy_within_r0.02": 0.75045,
+        "energy_within_r0.05": 0.915246,
+        "energy_within_r0.1": 0.953374,
+        "energy_within_r0.25": 0.98321,
+        "energy_within_r0.5": 0.99393,
+        "hermitian_asymmetry": 1.700696,
+        "kspace_dynamic_range_db": 68.58
+      },
+      "arrays": {
+        "kspace": {
+          "dtype": "complex64",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "image": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "phase": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        }
+      },
+      "files": {
+        "npz": "samples/spine-0003-t2-axial.npz",
+        "image_png": "previews/spine-0003-t2-axial_image.png",
+        "kspace_png": "previews/spine-0003-t2-axial_kspace.png"
+      }
+    },
+    {
+      "id": "knee-mri-sagittal",
+      "title": "Knee MRI, sagittal slice",
+      "collection": "3D_volumetric_imaging",
+      "collection_note": "Assorted 3-D medical and test volumes stored as NIfTI; one 2-D slice is extracted per volume.",
+      "tags": [
+        "knee",
+        "joint",
+        "mri"
+      ],
+      "source_file": "3D_volumetric_imaging/Knee_MRI/knee_xw_ra8a8a8offset1radi20020423tradialGradientid1215505000008201gradientUnitNAuserSpaceOI.nii",
+      "shape": [
+        256,
+        256
+      ],
+      "crop": "center",
+      "selection": null,
+      "acquisition": {
+        "plane": "sagittal",
+        "slice_index": 16,
+        "n_slices": 34,
+        "voxel_size_mm": [
+          3.3,
+          0.352,
+          0.352
+        ],
+        "native_shape": [
+          512,
+          512
+        ],
+        "source_volume_shape": [
+          34,
+          512,
+          512
+        ],
+        "modality": "MRI",
+        "anatomy": "knee",
+        "weighting": "radial gradient-echo acquisition"
+      },
+      "phase": {
+        "model": "synthetic smooth phase (B0 bowl + linear ramp + coil ripples)",
+        "seed": 1169256161,
+        "strength": 1.0
+      },
+      "stats": {
+        "energy_within_r0.02": 0.828257,
+        "energy_within_r0.05": 0.902615,
+        "energy_within_r0.1": 0.946719,
+        "energy_within_r0.25": 0.983283,
+        "energy_within_r0.5": 0.99353,
+        "hermitian_asymmetry": 1.262772,
+        "kspace_dynamic_range_db": 66.96
+      },
+      "arrays": {
+        "kspace": {
+          "dtype": "complex64",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "image": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "phase": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        }
+      },
+      "files": {
+        "npz": "samples/knee-mri-sagittal.npz",
+        "image_png": "previews/knee-mri-sagittal_image.png",
+        "kspace_png": "previews/knee-mri-sagittal_kspace.png"
+      }
+    },
+    {
+      "id": "abdomen-mri-axial",
+      "title": "Abdominal MRI, axial slice",
+      "collection": "3D_volumetric_imaging",
+      "collection_note": "Assorted 3-D medical and test volumes stored as NIfTI; one 2-D slice is extracted per volume.",
+      "tags": [
+        "abdomen",
+        "mri",
+        "breath-hold"
+      ],
+      "source_file": "3D_volumetric_imaging/Abdominal_MRI/abdominal_xw_t2hastetra2stepmbh3202A.nii",
+      "shape": [
+        256,
+        256
+      ],
+      "crop": "center",
+      "selection": null,
+      "acquisition": {
+        "plane": "axial",
+        "slice_index": 26,
+        "n_slices": 54,
+        "voxel_size_mm": [
+          1.25,
+          1.25,
+          8.8
+        ],
+        "native_shape": [
+          300,
+          320
+        ],
+        "source_volume_shape": [
+          320,
+          300,
+          54
+        ],
+        "modality": "MRI",
+        "anatomy": "abdomen",
+        "weighting": "T2 HASTE, breath-hold"
+      },
+      "phase": {
+        "model": "synthetic smooth phase (B0 bowl + linear ramp + coil ripples)",
+        "seed": 2074009266,
+        "strength": 1.0
+      },
+      "stats": {
+        "energy_within_r0.02": 0.729137,
+        "energy_within_r0.05": 0.859929,
+        "energy_within_r0.1": 0.94354,
+        "energy_within_r0.25": 0.988163,
+        "energy_within_r0.5": 0.99774,
+        "hermitian_asymmetry": 0.891174,
+        "kspace_dynamic_range_db": 73.18
+      },
+      "arrays": {
+        "kspace": {
+          "dtype": "complex64",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "image": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "phase": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        }
+      },
+      "files": {
+        "npz": "samples/abdomen-mri-axial.npz",
+        "image_png": "previews/abdomen-mri-axial_image.png",
+        "kspace_png": "previews/abdomen-mri-axial_kspace.png"
+      }
+    },
+    {
+      "id": "jaw-ct-axial",
+      "title": "Jaw CT, axial slice",
+      "collection": "3D_volumetric_imaging",
+      "collection_note": "Assorted 3-D medical and test volumes stored as NIfTI; one 2-D slice is extracted per volume.",
+      "tags": [
+        "jaw",
+        "ct",
+        "bone",
+        "high-contrast"
+      ],
+      "source_file": "3D_volumetric_imaging/Jaw_CT/jaw_xw_t8215gradientUnitsuserSpaceO2009090923118cx41993gra140323ansformmatrix1176710NA-76928.nii",
+      "shape": [
+        256,
+        256
+      ],
+      "crop": "center",
+      "selection": null,
+      "acquisition": {
+        "plane": "axial",
+        "slice_index": 196,
+        "n_slices": 392,
+        "voxel_size_mm": [
+          0.3,
+          0.3,
+          0.3
+        ],
+        "native_shape": [
+          536,
+          536
+        ],
+        "source_volume_shape": [
+          536,
+          536,
+          392
+        ],
+        "modality": "CT",
+        "anatomy": "jaw",
+        "weighting": "n/a (X-ray attenuation)"
+      },
+      "phase": {
+        "model": "synthetic smooth phase (B0 bowl + linear ramp + coil ripples)",
+        "seed": 4211908643,
+        "strength": 1.0
+      },
+      "stats": {
+        "energy_within_r0.02": 0.84305,
+        "energy_within_r0.05": 0.924338,
+        "energy_within_r0.1": 0.958814,
+        "energy_within_r0.25": 0.990038,
+        "energy_within_r0.5": 0.997845,
+        "hermitian_asymmetry": 1.318482,
+        "kspace_dynamic_range_db": 73.53
+      },
+      "arrays": {
+        "kspace": {
+          "dtype": "complex64",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "image": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "phase": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        }
+      },
+      "files": {
+        "npz": "samples/jaw-ct-axial.npz",
+        "image_png": "previews/jaw-ct-axial_image.png",
+        "kspace_png": "previews/jaw-ct-axial_kspace.png"
+      }
+    },
+    {
+      "id": "walnut-ct-axial",
+      "title": "Walnut micro-CT, axial slice",
+      "collection": "3D_volumetric_imaging",
+      "collection_note": "Assorted 3-D medical and test volumes stored as NIfTI; one 2-D slice is extracted per volume.",
+      "tags": [
+        "walnut",
+        "ct",
+        "fine-detail",
+        "test-object"
+      ],
+      "source_file": "3D_volumetric_imaging/Walnut_CT_complete/walnut.nii",
+      "shape": [
+        256,
+        256
+      ],
+      "crop": "center",
+      "selection": null,
+      "acquisition": {
+        "plane": "axial",
+        "slice_index": 176,
+        "n_slices": 352,
+        "voxel_size_mm": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "native_shape": [
+          296,
+          400
+        ],
+        "source_volume_shape": [
+          400,
+          296,
+          352
+        ],
+        "modality": "CT",
+        "anatomy": "walnut (non-medical test object)",
+        "weighting": "n/a (X-ray attenuation)"
+      },
+      "phase": {
+        "model": "synthetic smooth phase (B0 bowl + linear ramp + coil ripples)",
+        "seed": 173392678,
+        "strength": 1.0
+      },
+      "stats": {
+        "energy_within_r0.02": 0.652449,
+        "energy_within_r0.05": 0.798658,
+        "energy_within_r0.1": 0.931473,
+        "energy_within_r0.25": 0.98642,
+        "energy_within_r0.5": 0.997467,
+        "hermitian_asymmetry": 1.376317,
+        "kspace_dynamic_range_db": 71.82
+      },
+      "arrays": {
+        "kspace": {
+          "dtype": "complex64",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "image": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "phase": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        }
+      },
+      "files": {
+        "npz": "samples/walnut-ct-axial.npz",
+        "image_png": "previews/walnut-ct-axial_image.png",
+        "kspace_png": "previews/walnut-ct-axial_kspace.png"
+      }
+    },
+    {
+      "id": "jaw-ct-coronal",
+      "title": "Jaw CT, coronal slice",
+      "collection": "3D_volumetric_imaging",
+      "collection_note": "Assorted 3-D medical and test volumes stored as NIfTI; one 2-D slice is extracted per volume.",
+      "tags": [
+        "jaw",
+        "ct",
+        "bone",
+        "sinus",
+        "fine-detail"
+      ],
+      "source_file": "3D_volumetric_imaging/Jaw_CT/jaw_xw_t8215gradientUnitsuserSpaceO2009090923118cx41993gra140323ansformmatrix1176710NA-76928.nii",
+      "shape": [
+        256,
+        256
+      ],
+      "crop": "center",
+      "selection": null,
+      "acquisition": {
+        "plane": "coronal",
+        "slice_index": 241,
+        "n_slices": 536,
+        "voxel_size_mm": [
+          0.3,
+          0.3,
+          0.3
+        ],
+        "native_shape": [
+          392,
+          536
+        ],
+        "source_volume_shape": [
+          536,
+          536,
+          392
+        ],
+        "modality": "CT",
+        "anatomy": "jaw / sinuses",
+        "weighting": "n/a (X-ray attenuation)"
+      },
+      "phase": {
+        "model": "synthetic smooth phase (B0 bowl + linear ramp + coil ripples)",
+        "seed": 3072384310,
+        "strength": 1.0
+      },
+      "stats": {
+        "energy_within_r0.02": 0.865185,
+        "energy_within_r0.05": 0.944264,
+        "energy_within_r0.1": 0.971679,
+        "energy_within_r0.25": 0.992291,
+        "energy_within_r0.5": 0.998015,
+        "hermitian_asymmetry": 1.388115,
+        "kspace_dynamic_range_db": 79.28
+      },
+      "arrays": {
+        "kspace": {
+          "dtype": "complex64",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "image": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "phase": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        }
+      },
+      "files": {
+        "npz": "samples/jaw-ct-coronal.npz",
+        "image_png": "previews/jaw-ct-coronal_image.png",
+        "kspace_png": "previews/jaw-ct-coronal_kspace.png"
+      }
+    },
+    {
+      "id": "teapot-axial",
+      "title": "Utah teapot phantom, axial slice",
+      "collection": "3D_volumetric_imaging",
+      "collection_note": "Assorted 3-D medical and test volumes stored as NIfTI; one 2-D slice is extracted per volume.",
+      "tags": [
+        "synthetic",
+        "control",
+        "geometric"
+      ],
+      "source_file": "3D_volumetric_imaging/Teapot/teapot.nii",
+      "shape": [
+        256,
+        256
+      ],
+      "crop": "center",
+      "selection": null,
+      "acquisition": {
+        "plane": "axial",
+        "slice_index": 44,
+        "n_slices": 89,
+        "voxel_size_mm": [
+          2.0,
+          2.0,
+          2.0
+        ],
+        "native_shape": [
+          128,
+          128
+        ],
+        "source_volume_shape": [
+          128,
+          128,
+          89
+        ],
+        "modality": "synthetic",
+        "anatomy": "n/a (synthetic control object)",
+        "weighting": "n/a"
+      },
+      "phase": {
+        "model": "synthetic smooth phase (B0 bowl + linear ramp + coil ripples)",
+        "seed": 3585425304,
+        "strength": 1.0
+      },
+      "stats": {
+        "energy_within_r0.02": 0.282053,
+        "energy_within_r0.05": 0.493298,
+        "energy_within_r0.1": 0.736389,
+        "energy_within_r0.25": 0.987814,
+        "energy_within_r0.5": 0.99968,
+        "hermitian_asymmetry": 1.557897,
+        "kspace_dynamic_range_db": 80.52
+      },
+      "arrays": {
+        "kspace": {
+          "dtype": "complex64",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "image": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "phase": {
+          "dtype": "float32",
+          "shape": [
+            256,
+            256
+          ]
+        }
+      },
+      "files": {
+        "npz": "samples/teapot-axial.npz",
+        "image_png": "previews/teapot-axial_image.png",
+        "kspace_png": "previews/teapot-axial_kspace.png"
+      }
+    }
+  ]
+}
