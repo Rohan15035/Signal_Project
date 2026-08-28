@@ -73,7 +73,70 @@ saying so plainly reads as understanding, not as apology.
 
 ---
 
-## 3. What we built
+## 3. A second axis of corruption: patient motion
+
+Everything above assumes the patient held still. They often can't — children
+especially, which is the actual reason paediatric scans have to be fast. This
+is a second, independent way a scan can go wrong, and it is worth pulling
+apart from undersampling because the physics is different and, per point
+below, it finally gives radial sampling a real justification.
+
+**The physics, in one line — the Fourier shift theorem:**
+
+```
+f(x − a)   ⟷   F(k) · exp(−j·2π·k·a/N)
+```
+
+Moving the patient does **not** change k-space *magnitude* at all — it only
+stamps a linear **phase ramp** onto it. Cartesian k-space is filled one row
+per repetition of the pulse sequence, so row index *is* acquisition time. If
+the patient is in a different place for different rows, each row carries a
+different phase ramp, and the reconstruction is the inverse FFT of data that
+is no longer consistent with any single object. That inconsistency is what
+shows up as ghosting, blur, or streaking, depending on *how* the motion
+evolves over the scan.
+
+Three motion profiles, measured fully sampled (no undersampling in the mix,
+so this is motion's cost in isolation) on `brain-glioma-778`:
+
+| Motion | PSNR | SSIM | Artifact |
+|---|---|---|---|
+| none | (exact) | 1.000 | — |
+| sudden jerk, 5 px at mid-scan | 22.75 dB | 0.793 | discrete ghost copy |
+| slow drift, 0 → 6 px | 20.05 dB | 0.703 | smearing / blur |
+| breathing, 3 px, 8 cycles | 24.36 dB | 0.738 | regular ghost train |
+
+A 5-pixel movement costs on the order of 100+ dB — motion is a far bigger
+threat to image quality than any undersampling ratio in this project.
+
+**Why this should finally make radial sampling look good, and the honest
+result:** every radial spoke passes through the k-space centre, so in theory
+no single spoke's mistiming can corrupt the centre the way one bad Cartesian
+row can — radial *should* be the motion-robust choice. Getting that to show
+up requires timing motion **per spoke**, not per row (naively reusing
+row-based timing and just masking with the radial pattern washes out almost
+all of the difference between strategies). We built the per-spoke machinery
+(`draw_spokes_indexed` + `apply_motion_radial` in `mri_sim/motion.py`) and
+verified it is mathematically exact — a uniform shift applied per spoke
+reconstructs identically to shifting the image first, to machine precision.
+
+But with the straightforward implementation — spokes timed in simple
+sequential angle order — radial did **not** come out ahead of Cartesian under
+identical motion on our reference sample, at several ratios and with every
+motion model we tried. Our working theory: real motion-robust radial
+acquisition relies on *interleaving* spoke order away from angle order (e.g.
+golden-angle sampling), so that any short time window of motion samples
+widely-separated angles instead of one contiguous wedge; a plain sequential
+sweep doesn't get that property for free. This is flagged as an open
+question, not asserted either way — see [§9](#9-be-honest-about-these).
+
+**Status:** implemented as a self-contained module, `mri_sim/motion.py` —
+not yet wired into the CLI sweep or the Streamlit app, so it is a verified
+library result rather than a demoable feature today.
+
+---
+
+## 4. What we built
 
 Three layers, each usable on its own.
 
@@ -82,6 +145,8 @@ Three layers, each usable on its own.
 The core signal processing. Forward FFT, five sampling masks, zero-filled
 reconstruction, PSNR/SSIM scoring, publication-quality figures. Plus the Stage 2
 additions: k-space noise simulation and a compressed-sensing reconstruction.
+Plus, most recently, a patient-motion simulator (§3) — currently a verified
+module, not yet surfaced in the CLI or the app.
 
 ### Layer 2 — the k-space sample store (`kspace_store/`, `data/kspace_store/`)
 
@@ -106,7 +171,7 @@ live as you drag. This is what you demo.
 
 ---
 
-## 4. The signals & systems content
+## 5. The signals & systems content
 
 This matters most for grading. The project is not "an MRI thing" — it is a
 direct application of the course, and you should name the concepts explicitly.
@@ -123,6 +188,7 @@ direct application of the course, and you should name the concepts explicitly.
 | **fftshift conventions** | Centered k-space throughout; `ifftshift` (not `fftshift`) to undo it, which differs for odd sizes |
 | **Additive white Gaussian noise** | Complex AWGN in k-space, with the correct I/Q channel model |
 | **Sparsity & L1 minimisation** | Compressed sensing via iterative soft-thresholding (FISTA) |
+| **Fourier shift theorem** | Patient motion during acquisition — a spatial shift is a phase ramp in k-space, never a magnitude change |
 
 The convolution-theorem line is the strongest single point in that table. If
 asked "why does Cartesian give ghosts and radial give streaks?", the answer is
@@ -133,7 +199,7 @@ to streaks.*
 
 ---
 
-## 5. The five-minute live demo
+## 6. The five-minute live demo
 
 Do it in this order. Each step sets up the next.
 
@@ -172,7 +238,7 @@ Show the source file path, the scanner's real TE/TR, the tumour mask overlay.
 
 ---
 
-## 6. What makes this stand out
+## 7. What makes this stand out
 
 Three things, in order of how much they'll actually count.
 
@@ -209,7 +275,7 @@ can grab the mouse and try to break it. Very few class projects survive that.
 
 ---
 
-## 7. Questions you should be ready for
+## 8. Questions you should be ready for
 
 **"Is this real MRI data or simulated?"**
 The *images* are real clinical MRI and CT. The *k-space* is simulated — we run a
@@ -242,6 +308,13 @@ structural similarity, and radial's streaks smear across tissue boundaries,
 which SSIM punishes hard. This is a good illustration of why one number is never
 enough to judge an image reconstruction.
 
+**"Does patient motion matter more than undersampling?"**
+Yes, by a wide margin. A 5-pixel jerk mid-scan costs on the order of 100+ dB,
+fully sampled — motion is a phase corruption (Fourier shift theorem), and it
+does not care whether every k-space point was measured. This is why fast
+imaging protocols exist for children even when image quality could otherwise
+be near-perfect: the real threat isn't Nyquist, it's the patient moving.
+
 **"What is compressed sensing actually doing?"**
 Zero-filling answers "what was the unmeasured data?" with "zero", which is
 false. CS instead asks: of all images consistent with what we measured, which is
@@ -263,10 +336,11 @@ against genuine raw scanner data from the fastMRI dataset.
 
 ---
 
-## 8. Be honest about these
+## 9. Be honest about these
 
 Volunteering limitations before you're asked is worth more than hoping they go
-unnoticed. All four are documented in the README:
+unnoticed. The first four are documented in the README; the fifth is a fresh
+finding from building the motion module (§3):
 
 - **The k-space is simulated**, via forward FFT from reconstructed images.
 - **The phase map is synthetic** — the source files are magnitude images.
@@ -279,10 +353,19 @@ unnoticed. All four are documented in the README:
   nearly symmetric), then pick the one showing the most brain. Four diagnoses
   have no axial candidate and fall back to sagittal — which happens to be the
   conventional view for those anyway.
+- **Radial's motion advantage didn't show up under simple spoke ordering.**
+  We expected — and the physics argument in §3 predicts — that timing motion
+  per spoke would let radial beat Cartesian under identical motion. With
+  spokes ordered by simple sequential angle, it didn't, on every ratio and
+  motion model we tried. We think this is because real motion-robust radial
+  acquisition depends on interleaving spoke order (golden-angle sampling),
+  not just per-spoke timing on its own — but that's a hypothesis, not a
+  verified result. Say this plainly if asked rather than claiming a win the
+  numbers don't support.
 
 ---
 
-## 9. Numbers worth memorising
+## 10. Numbers worth memorising
 
 | Quantity | Value |
 |---|---|
@@ -294,10 +377,12 @@ unnoticed. All four are documented in the README:
 | Reconstruction speed | ~1 ms (so sliders are live) |
 | Best CS gain | +2.06 dB, +0.124 SSIM at 16× acceleration |
 | Sampling strategies | 5 (Cartesian, radial, variable-density, centre-only, edges-only) |
+| Motion cost, fully sampled | 5 px jerk: 22.75 dB / 0.793 SSIM (vs. exact with no motion) |
+| Uniform-shift verification error | 6.7 × 10⁻¹⁶ (machine precision) |
 
 ---
 
-## 10. Running it
+## 11. Running it
 
 ```bash
 streamlit run app/streamlit_app.py     # then http://localhost:8501
