@@ -1,25 +1,16 @@
-"""
-main.py -- run the whole MRI k-space simulation end to end.
+"""Run the whole MRI k-space simulation end to end.
 
-For every combination of (sampling strategy, undersampling ratio) it:
+For every (strategy, ratio) pair: build the mask, zero-fill the unsampled
+points, reconstruct by inverse FFT, score with PSNR/SSIM, and save a
+four-panel figure. Then write a summary chart and a CSV of every number.
 
-    1. builds the k-space sampling mask,
-    2. zero-fills the unsampled k-space points,
-    3. reconstructs by inverse FFT + magnitude,
-    4. scores the result against the original with PSNR and SSIM,
-    5. saves a four-panel comparison figure,
-
-then writes a summary chart (PSNR/SSIM vs ratio) and a CSV of every number.
-
-Usage
------
-    python main.py                          # Shepp-Logan phantom, defaults
-    python main.py --image brain.png        # use your own grayscale image
+    python main.py                          # phantom, defaults
+    python main.py --image brain.png        # your own grayscale image
     python main.py --size 512               # work at 512x512
     python main.py --ratios 1.0 0.5 0.25    # choose the sampling ratios
     python main.py --outdir results         # where the figures go
 
-Run `python main.py --help` for the full list.
+python main.py --help lists everything, including the Stage 2 flags.
 """
 
 from __future__ import annotations
@@ -31,12 +22,11 @@ import os
 from mri_sim import kspace as ks
 from mri_sim import cs, io_utils, metrics, noise, visualize
 
-# The three strategies, in the order they appear in every figure and table.
+# Order used in every figure and table.
 STRATEGIES = ["cartesian", "radial", "variable_density"]
 
-# Default sampling ratios: fully sampled, then halving. 0.125 is an 8x
-# accelerated scan -- aggressive enough that all three strategies visibly fail
-# in their own characteristic way, which is the point of the comparison.
+# Fully sampled, then halving. 0.125 is an 8x scan -- aggressive enough that
+# all three strategies visibly fail in their own characteristic way.
 DEFAULT_RATIOS = [1.0, 0.5, 0.25, 0.125]
 
 
@@ -75,9 +65,8 @@ def parse_args() -> argparse.Namespace:
         help="random seed for the variable-density mask (reproducibility)",
     )
 
-    # ---- Stage 2: all optional, all off by default -------------------------
-    # None of these replace anything above; they add extra runs and extra
-    # figures on top of the Stage 1 sweep.
+    # Stage 2: all optional and off by default. These add extra runs and
+    # figures on top of the Stage 1 sweep; they replace nothing.
     stage2 = parser.add_argument_group("Stage 2 (optional)")
     stage2.add_argument(
         "--sample",
@@ -124,16 +113,12 @@ def parse_args() -> argparse.Namespace:
 
 
 def run(args: argparse.Namespace) -> list[dict]:
-    """
-    Execute the full experiment grid and return one result dict per run.
-    """
+    """Execute the full experiment grid, one result dict per run."""
     size = args.size if args.size and args.size > 0 else None
 
-    # ---- Step 1: the "object being scanned" --------------------------------
     if args.sample:
-        # Stage 2: take a real slice out of the k-space store. Note the k-space
-        # is *read from disk*, not computed here -- the store already holds it,
-        # complete with the synthetic phase that makes it non-Hermitian.
+        # Store k-space is read from disk, not computed here -- it already has
+        # the synthetic phase that makes it non-Hermitian.
         from kspace_store.store import KSpaceStore
 
         sample = KSpaceStore(args.store).load(args.sample)
@@ -143,19 +128,15 @@ def run(args: argparse.Namespace) -> list[dict]:
     else:
         image = io_utils.load_image(args.image, size=size)
         source = args.image if args.image else "skimage.data.shepp_logan_phantom()"
-        # ---- Step 2: forward FFT -> synthetic k-space ----------------------
-        # Done ONCE. Every experiment below re-uses this same full k-space and
-        # differs only in which of its points the "scanner" is allowed to keep.
+        # Done once. Every experiment re-uses this same full k-space and differs
+        # only in which points the scanner is allowed to keep.
         full_kspace = ks.to_kspace(image)
 
     print(f"Image  : {source}")
     print(f"Shape  : {image.shape}, range [{image.min():.3f}, {image.max():.3f}]")
 
-    # Sanity check: reconstructing the untouched k-space must return the
-    # original image to within floating-point noise. If this ever fails, the
-    # fftshift/ifftshift pairing is wrong. (Store samples are stored as
-    # complex64, so their round trip is limited by float32 precision, not
-    # float64 -- hence the looser tolerance in that case.)
+    # If this fails, the fftshift/ifftshift pairing is wrong. Store samples are
+    # complex64, so their round trip is limited by float32 precision.
     roundtrip_error = float(abs(ks.from_kspace(full_kspace) - image).max())
     tolerance = 1e-5 if args.sample else 1e-9
     print(f"FFT round-trip max error: {roundtrip_error:.2e}")
@@ -167,21 +148,18 @@ def run(args: argparse.Namespace) -> list[dict]:
 
     os.makedirs(args.outdir, exist_ok=True)
 
-    # ---- Step 3-5: build masks, reconstruct, score -------------------------
-    # First pass: compute everything and keep the arrays we need for plotting.
     runs = []
     for kind in STRATEGIES:
         for ratio in args.ratios:
-            # The variable-density mask is the only randomised one, so it is
-            # the only one that takes a seed.
+            # Variable-density is the only randomised mask, so the only one
+            # that takes a seed.
             extra = {"seed": args.seed} if kind == "variable_density" else {}
             mask = ks.build_mask(kind, image.shape, ratio, **extra)
 
             if args.noise_snr is None:
                 kspace_masked = ks.apply_mask(full_kspace, mask)
             else:
-                # Stage 2: mask first, then add noise to what was measured --
-                # the physical order. See mri_sim/noise.py.
+                # Mask first, then noise the measured points -- see noise.py.
                 kspace_masked = noise.simulate_acquisition(
                     full_kspace, mask, snr_db=args.noise_snr, seed=args.seed
                 )
@@ -202,13 +180,12 @@ def run(args: argparse.Namespace) -> list[dict]:
                 }
             )
 
-    # One shared upper limit for every error-map colour bar, so a dark patch
-    # in one figure means the same amount of error as a dark patch in another.
+    # One shared colour-bar limit, so a dark patch means the same amount of
+    # error in every figure.
     error_vmax = max(
         float(abs(image - r["_reconstruction"]).max()) for r in runs
     )
 
-    # ---- Step 6: figures ---------------------------------------------------
     print(f"\nWriting figures to {os.path.abspath(args.outdir)}")
     for r in runs:
         filename = f"{r['mask']}_ratio{int(round(r['target_ratio'] * 1000)):04d}.png"
@@ -226,7 +203,6 @@ def run(args: argparse.Namespace) -> list[dict]:
         )
         print(f"  {filename}")
 
-    # A gallery of the three mask shapes at the most aggressive ratio tested.
     gallery_ratio = min(args.ratios)
     gallery = {
         r["mask"]: r["_mask"]
@@ -243,13 +219,11 @@ def run(args: argparse.Namespace) -> list[dict]:
     )
     print("  summary_metrics.png")
 
-    # ---- Stage 2 extras ----------------------------------------------------
-    # Both are additive: they write their own figures and do not touch the
-    # Stage 1 sweep above or the metrics table.
+    # Stage 2 extras. Both write their own figures and touch nothing above.
 
     if args.center_edges:
-        # Same fraction of k-space kept in both cases, so the only difference
-        # is *which* frequencies were kept.
+        # Same fraction kept both ways, so the only difference is which
+        # frequencies were kept.
         demo_ratio = 0.10
         center_mask = ks.build_mask("center_only", image.shape, demo_ratio)
         edges_mask = ks.build_mask("edges_only", image.shape, demo_ratio)
@@ -264,9 +238,8 @@ def run(args: argparse.Namespace) -> list[dict]:
         print("  center_vs_edges.png")
 
     if args.cs:
-        # Compressed sensing needs *incoherent* artifacts, so it is run on the
-        # random variable-density mask -- see the module docstring in cs.py for
-        # why it cannot help a regular Cartesian mask.
+        # CS needs incoherent artifacts, so it runs on the random mask -- see
+        # cs.py for why it cannot help a regular Cartesian one.
         cs_ratio = min(args.ratios)
         cs_mask = ks.build_mask("variable_density", image.shape, cs_ratio, seed=args.seed)
         if args.noise_snr is None:
@@ -317,8 +290,7 @@ def write_table(runs: list[dict], outdir: str) -> None:
 
     csv_path = os.path.join(outdir, "metrics.csv")
     with open(csv_path, "w", newline="", encoding="utf-8") as handle:
-        # The leading-underscore keys hold big numpy arrays for plotting; they
-        # do not belong in the CSV.
+        # The underscore keys hold big numpy arrays for plotting; not for CSV.
         fields = ["mask", "target_ratio", "achieved_ratio", "acceleration", "psnr", "ssim"]
         writer = csv.DictWriter(handle, fieldnames=fields)
         writer.writeheader()

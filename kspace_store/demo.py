@@ -1,19 +1,16 @@
-"""
-demo.py -- run the Stage 1 sampling experiment on a sample from the store.
+"""Run the Stage 1 sampling experiment on a sample from the store.
 
     python -m kspace_store.demo                          # first sample
     python -m kspace_store.demo --sample nins-glioma     # a specific one
     python -m kspace_store.demo --list                   # what's available
     python -m kspace_store.demo --sample spine-0001-t2-sagittal --ratios 0.5 0.25
 
-This exists to prove one point: the store drops straight into the Stage 1
-simulator. It builds the same three masks from `mri_sim.kspace`, but instead
-of starting from the Shepp-Logan phantom it starts from real k-space read out
-of the store -- no forward FFT needed at demo time, because the store already
-holds the k-space.
+Shows that the store drops straight into the simulator: same three masks from
+mri_sim.kspace, but starting from real k-space read off disk, so no forward FFT
+is needed at demo time.
 
-It also prints, per sample, the number that motivates the whole "protect the
-centre" design: what fraction of the total k-space energy lives in the middle.
+It also prints the number that motivates the whole protect-the-centre design:
+how much of the total k-space energy sits in the middle.
 """
 
 from __future__ import annotations

@@ -1,22 +1,16 @@
-"""
-catalog.py -- decides *which* 40 slices go into the store.
+"""Decides which 40 slices go into the store.
 
-The raw dataset has ~43,000 files. A demo needs a few dozen good ones, chosen
-to cover as much variety as possible:
+The raw dataset has ~43,000 files; a demo needs a few dozen chosen for
+variety: three tumour types with expert masks, a spread of brain pathologies
+and normals, the same spine under T1 and T2, and some non-brain anatomy and
+non-MRI modalities.
 
-    - three tumour types with expert masks        (BrainTumorDataPublic)
-    - a spread of brain pathologies + normals     (NINS_Dataset)
-    - the same spine imaged with T1 and T2        (MRI_Dataset, real DICOM)
-    - non-brain anatomy and non-MRI modalities    (3D_volumetric_imaging)
+Every rule here is deterministic -- fixed lists, fixed strides, fixed
+tie-breakers, no randomness -- so rebuilding on another machine gives the same
+40 samples and the metrics in a report stay reproducible.
 
-Every selection rule in this file is deterministic: fixed file lists, fixed
-strides, fixed tie-breakers, no randomness. Rebuilding the store on another
-machine must produce the same 40 samples, otherwise the metrics in a report
-would not be reproducible.
-
-Each function returns a list of "recipes". A recipe is a plain dict telling
-build.py which reader to call, with what arguments, and how to label the
-result in the manifest.
+Each function returns recipes: plain dicts telling build.py which reader to
+call, with what arguments, and how to label the result.
 """
 
 from __future__ import annotations
@@ -32,26 +26,21 @@ NINS_DIR = os.path.join("NINS_Dataset", "NINS_Dataset")
 DICOM_DIR = "MRI_Dataset"
 VOLUME_DIR = "3D_volumetric_imaging"
 
-
-# ---------------------------------------------------------------------------
-# 1. Brain tumour .mat files -- 4 cases per tumour type
-# ---------------------------------------------------------------------------
-
-# Scan every Nth file rather than all 3064: opening a file is ~2 ms, and a
-# stride of 37 still visits ~80 candidates spread across the whole collection
-# (the files are ordered by tumour type, so a stride samples all three).
+# Opening a file is ~2 ms, so instead of all 3064 we visit ~80 spread across
+# the collection. The files are ordered by tumour type, so a stride hits all
+# three.
 _TUMOR_SCAN_STRIDE = 37
 
-# Reject tiny lesions: if the tumour is a few dozen pixels you cannot judge by
-# eye whether a reconstruction preserved it, which defeats the point.
+# Reject tiny lesions: with a few dozen pixels you cannot judge by eye whether
+# a reconstruction preserved the tumour.
 _MIN_TUMOR_AREA_PX = 2000
 
 
 def brain_tumor_recipes(dataset_root: str, per_class: int = 4) -> list[dict]:
     """Pick `per_class` well-sized cases of each tumour type."""
     folder = os.path.join(dataset_root, BRAIN_TUMOR_DIR)
-    # Sort numerically (1.mat, 2.mat, ... not 1.mat, 10.mat, 100.mat) so the
-    # stride walks the collection in the authors' original order.
+    # Numeric sort (1, 2, ... not 1, 10, 100) so the stride walks the
+    # collection in the authors' original order.
     files = sorted(
         glob.glob(os.path.join(folder, "*.mat")),
         key=lambda p: int(os.path.splitext(os.path.basename(p))[0]),
@@ -86,13 +75,8 @@ def brain_tumor_recipes(dataset_root: str, per_class: int = 4) -> list[dict]:
     return [recipe for label in (1, 2, 3) for recipe in chosen[label]]
 
 
-# ---------------------------------------------------------------------------
-# 2. NINS pathology JPEGs -- one representative slice per diagnosis
-# ---------------------------------------------------------------------------
-
-# Hand-picked diagnoses: a normal baseline plus conditions whose appearance is
-# distinctive enough to recognise in a reconstruction (mass, bleed, big
-# ventricles, diffuse white-matter change).
+# A normal baseline plus conditions distinctive enough to recognise in a
+# reconstruction: mass, bleed, big ventricles, diffuse white-matter change.
 _NINS_CLASSES = [
     "Normal",
     "Glioma",
@@ -110,36 +94,28 @@ _NINS_CLASSES = [
     "Cerebral abscess",
 ]
 
-# How many candidates to score per folder before picking the best one.
-# Reading a 320x320 JPEG is ~1 ms, so 120 candidates per class is cheap.
+# Reading a 320x320 JPEG is ~1 ms, so scoring 120 per folder is cheap.
 _NINS_CANDIDATES = 120
 
-# Above this left-right mirror correlation we call a slice axial/coronal
-# rather than sagittal. Measured scores cluster around 0.90-0.98 for axial
-# slices and 0.35-0.60 for sagittal ones, so the exact cut hardly matters.
+# Axial slices score 0.90-0.98 on mirror correlation and sagittal ones
+# 0.35-0.60, so the exact cut hardly matters.
 _NINS_AXIAL_SYMMETRY = 0.90
 
 
 def nins_recipes(dataset_root: str, classes: list[str] | None = None) -> list[dict]:
-    """
-    One slice per diagnosis: prefer a well-filled *axial* view.
+    """One slice per diagnosis: prefer a well-filled axial view.
 
-    The folders mix planes and patients with no labels, so selection is a
-    two-stage rule over the pixels themselves (see sources.nins_slice_scores):
+    The folders mix planes and patients with no labels, so selection works off
+    the pixels (see sources.nins_slice_scores): keep the left-right symmetric
+    candidates, then take the one showing the most brain.
 
-        1. keep the candidates that look axial, i.e. left-right symmetric;
-        2. among those, take the one showing the most brain.
+    The symmetry stage matters because the first files in each folder tend to
+    be mid-sagittal slices that look nearly identical across diagnoses, and
+    most of these conditions are read off axial images anyway.
 
-    Stage 1 matters because the first files in each folder tend to be
-    mid-sagittal head slices, which look nearly identical from one diagnosis
-    to the next -- 14 samples that all look the same is a poor demo, and most
-    of these conditions (tumour, infarct, hydrocephalus) are read off axial
-    images anyway.
-
-    If a folder has no axial candidate we fall back to the whole list rather
-    than dropping the diagnosis. That is not a defeat: the classes it happens
-    to for -- pituitary tumour, Chiari I malformation -- are precisely the
-    ones a radiologist would show mid-sagittal.
+    A folder with no axial candidate falls back to the whole list rather than
+    dropping the diagnosis -- and the classes that happens for, pituitary
+    tumour and Chiari I, are ones a radiologist would show mid-sagittal.
     """
     folder_root = os.path.join(dataset_root, NINS_DIR)
     recipes: list[dict] = []
@@ -154,8 +130,8 @@ def nins_recipes(dataset_root: str, classes: list[str] | None = None) -> list[di
         axial = [item for item in scored if item[0][1] >= _NINS_AXIAL_SYMMETRY]
         pool = axial or scored
 
-        # Sort key is (fill, path): the path breaks ties deterministically so
-        # the same file wins on every machine.
+        # The path breaks ties deterministically, so the same file wins on
+        # every machine.
         (fill, symmetry), best = max(pool, key=lambda item: (item[0][0], item[1]))
         plane = "axial (inferred from left-right symmetry)" if axial \
             else "sagittal / off-axial (no symmetric slice in this folder)"
@@ -183,14 +159,10 @@ def nins_recipes(dataset_root: str, classes: list[str] | None = None) -> list[di
     return recipes
 
 
-# ---------------------------------------------------------------------------
-# 3. DICOM spine -- the same anatomy under T1 and T2 contrast
-# ---------------------------------------------------------------------------
-
-# Two patients x four series. Series folder names are consistent across
-# patients even though the enclosing study folder name is not, so we glob the
-# study level. Pairing T1 and T2 of the same plane is the whole point: it
-# shows that "MRI contrast" is a property of the acquisition, not the anatomy.
+# Two patients x four series. Pairing T1 and T2 of the same plane is the point:
+# it shows MRI contrast is a property of the acquisition, not the anatomy.
+# Series folder names are consistent across patients; the study folder is not,
+# so we glob that level.
 _DICOM_PATIENTS = ["0001", "0003"]
 _DICOM_SERIES = [
     ("T1_TSE_SAG_320_0003", "T1 sagittal"),
@@ -212,8 +184,7 @@ def dicom_recipes(dataset_root: str) -> list[dict]:
             if not matches:
                 continue
             matches.sort()
-            # The middle slice of a spine series is the one through the cord /
-            # mid-vertebral body -- the anatomically interesting one.
+            # The middle slice runs through the cord / mid-vertebral body.
             path = matches[len(matches) // 2]
 
             recipes.append({
@@ -221,9 +192,8 @@ def dicom_recipes(dataset_root: str) -> list[dict]:
                 "title": f"Lumbar spine, {label} (patient {patient})",
                 "reader": "dicom",
                 "args": {"path": path},
-                # The spine sits off to one side of a mostly-empty frame in
-                # these studies, so crop to the signal instead of the middle
-                # of the image (see prepare.content_crop_square).
+                # The spine sits off to one side of a mostly-empty frame here,
+                # so crop to the signal (see prepare.content_crop_square).
                 "crop": "content",
                 "collection": "MRI_Dataset",
                 "collection_note": (
@@ -235,10 +205,6 @@ def dicom_recipes(dataset_root: str) -> list[dict]:
 
     return recipes
 
-
-# ---------------------------------------------------------------------------
-# 4. Volumetric NIfTI -- non-brain anatomy and non-MRI modalities
-# ---------------------------------------------------------------------------
 
 # (folder, filename glob, plane, fractional slice position, extra metadata)
 _VOLUMES = [
@@ -274,14 +240,12 @@ _VOLUMES = [
         "weighting": "n/a (X-ray attenuation)",
         "tags": ["walnut", "ct", "fine-detail", "test-object"],
     }),
-    # A second plane through the jaw volume rather than a second organ: the
-    # coronal view shows the sinuses and tooth roots, which is a much sharper
-    # test of high-frequency detail than the axial view.
+    # A second plane through the jaw rather than another organ: the coronal
+    # view shows sinuses and tooth roots, a sharper test of fine detail.
     #
-    # (The Brain_FMRI and Cuboid_flow volumes in this dataset are *vector
-    # fields*, not images -- their voxels are unit direction vectors, so the
-    # magnitude is 1 everywhere inside the brain and the "image" is a flat
-    # white blob. They are deliberately excluded.)
+    # Brain_FMRI and Cuboid_flow are vector fields, not images -- their voxels
+    # are unit direction vectors, so the magnitude is 1 everywhere inside the
+    # brain and the "image" is a flat white blob. Deliberately excluded.
     ("Jaw_CT", "*.nii", "coronal", 0.45, {
         "id": "jaw-ct-coronal",
         "title": "Jaw CT, coronal slice",
@@ -339,10 +303,6 @@ def volume_recipes(dataset_root: str) -> list[dict]:
     return recipes
 
 
-# ---------------------------------------------------------------------------
-# Assembly
-# ---------------------------------------------------------------------------
-
 # Which builders run for each --sources value on the command line.
 BUILDERS = {
     "brain_tumor": brain_tumor_recipes,
@@ -353,14 +313,7 @@ BUILDERS = {
 
 
 def build_catalog(dataset_root: str, wanted: list[str] | None = None) -> list[dict]:
-    """
-    Assemble the full recipe list.
-
-    Parameters
-    ----------
-    dataset_root : path to the extracted `archive (1)` folder
-    wanted : subset of BUILDERS keys, or None for all four
-    """
+    """Assemble the full recipe list; wanted is a subset of BUILDERS, or None for all."""
     recipes: list[dict] = []
     for name in (wanted or list(BUILDERS)):
         if name not in BUILDERS:

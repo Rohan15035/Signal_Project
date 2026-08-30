@@ -1,25 +1,16 @@
-"""
-build.py -- read the raw dataset once and write the k-space sample store.
+"""Read the raw dataset once and write the k-space sample store.
 
     python -m kspace_store.build                        # build everything
     python -m kspace_store.build --sources dicom        # just one collection
     python -m kspace_store.build --size 512 --out data/kspace_store_512
     python -m kspace_store.build --gallery              # + a contact sheet
 
-This is the slow, offline half of the package. It touches the 12 GB dataset,
-needs h5py / pillow / pydicom / nibabel, and takes a couple of minutes. The
-web app never runs it -- the app only ever reads the small store it produces
-(see store.py).
+The slow offline half: it touches the 12 GB dataset, needs
+h5py/pillow/pydicom/nibabel, and takes a couple of minutes. The web app never
+runs it -- it only reads the small store this produces.
 
-For every selected slice it writes:
-
-    samples/<id>.npz       kspace (complex64, centered), image (float32),
-                           phase (float32), and tumor_mask (uint8) if the
-                           source had one
-    previews/<id>_image.png    grayscale magnitude image
-    previews/<id>_kspace.png   log-magnitude k-space, false colour
-    manifest.json          one metadata record per sample
-    README.md              format documentation for whoever uses the store
+Per slice it writes samples/<id>.npz (kspace, image, phase, and tumor_mask if
+the source had one), two PNG previews, a manifest record, and a README.
 """
 
 from __future__ import annotations
@@ -38,18 +29,11 @@ from . import catalog, prepare, sources
 DEFAULT_DATASET_ROOT = os.path.join("Dataset", "archive (1)")
 DEFAULT_OUT = os.path.join("data", "kspace_store")
 
-# Phase realism knob; see prepare.synthetic_phase for what this does.
 DEFAULT_PHASE_STRENGTH = 1.0
 
-# Radii (as a fraction of the k-space radius) at which we report how much of
-# the signal energy is enclosed. These numbers are the evidence for "the
-# centre of k-space carries the image".
+# Radii at which to report enclosed energy -- the evidence for "the centre of
+# k-space carries the image".
 ENERGY_RADII = [0.02, 0.05, 0.10, 0.25, 0.50]
-
-
-# ---------------------------------------------------------------------------
-# Reader dispatch
-# ---------------------------------------------------------------------------
 
 
 def run_reader(name: str, args: dict):
@@ -65,11 +49,6 @@ def run_reader(name: str, args: dict):
     raise ValueError(f"unknown reader '{name}'")
 
 
-# ---------------------------------------------------------------------------
-# Per-sample processing
-# ---------------------------------------------------------------------------
-
-
 def process_recipe(
     recipe: dict,
     dataset_root: str,
@@ -77,57 +56,46 @@ def process_recipe(
     size: int,
     phase_strength: float,
 ) -> dict:
-    """
-    Turn one catalogue recipe into files on disk plus a manifest record.
-    """
+    """Turn one catalogue recipe into files on disk plus a manifest record."""
     raw_image, meta, extra = run_reader(recipe["reader"], recipe["args"])
 
-    # 1-3: crop -> normalise -> resize. Most sources are already centred; the
-    # recipe can ask for a content-aware crop instead (the spine DICOMs do).
+    # Most sources are already centred; a recipe can ask for a content-aware
+    # crop instead, as the spine DICOMs do.
     crop = recipe.get("crop", "center")
     image = prepare.to_store_image(raw_image, size=size, crop=crop)
 
-    # 4: forward FFT into centered k-space, with a synthetic phase map so the
-    # data is genuinely complex (see prepare.synthetic_phase).
-    #
-    # The seed is derived from the sample id, so it is stable across rebuilds
-    # and different for every sample.
+    # Seed derived from the sample id: stable across rebuilds, different per
+    # sample.
     seed = _stable_seed(recipe["id"])
     kspace, phase = prepare.build_kspace(image, seed=seed, phase_strength=phase_strength)
 
     arrays = {
-        # complex64 rather than complex128: half the file size, and 7 decimal
-        # digits is far more precision than an 8-bit display can ever show.
+        # complex64, not complex128: half the size, and 7 digits is far more
+        # than an 8-bit display can show.
         "kspace": kspace.astype(np.complex64),
         "image": image.astype(np.float32),
         "phase": phase.astype(np.float32),
     }
 
-    # Carry aligned masks through the same geometry (crop + resize) so they
-    # still line up with the image. Nearest-neighbour-ish: we threshold after
-    # resizing to keep the mask binary.
     tumor_mask = extra.get("tumor_mask")
     if tumor_mask is not None:
-        # Reuse the box computed from the *image* so the mask cannot drift out
-        # of alignment with it, then re-binarise after the smooth resize.
+        # Reuse the box computed from the image so the mask cannot drift out of
+        # alignment, then re-binarise after the smooth resize.
         box = prepare.square_crop_box(np.asarray(raw_image, dtype=np.float64), crop)
         mask = prepare.apply_crop(tumor_mask.astype(np.float64), box)
         mask = prepare.resize_square(mask, size)
         arrays["tumor_mask"] = (mask > 0.5).astype(np.uint8)
 
-    # --- write arrays -----------------------------------------------------
     npz_rel = f"samples/{recipe['id']}.npz"
     npz_path = os.path.join(out_dir, npz_rel)
     os.makedirs(os.path.dirname(npz_path), exist_ok=True)
     np.savez_compressed(npz_path, **arrays)
 
-    # --- write previews ---------------------------------------------------
     image_png_rel = f"previews/{recipe['id']}_image.png"
     kspace_png_rel = f"previews/{recipe['id']}_kspace.png"
     _save_gray_png(image, os.path.join(out_dir, image_png_rel))
     _save_kspace_png(kspace, os.path.join(out_dir, kspace_png_rel))
 
-    # --- statistics for the manifest --------------------------------------
     stats = {
         f"energy_within_r{radius:g}": round(
             prepare.center_energy_fraction(kspace, radius), 6
@@ -148,8 +116,8 @@ def process_recipe(
         "source_file": sources.relative_to(recipe["args"]["path"], dataset_root),
         "shape": [int(size), int(size)],
         "crop": crop,
-        # How this particular slice was chosen out of its folder, when the
-        # choice was made by a rule rather than hard-coded.
+        # How this slice was chosen, when a rule rather than a hard-coded path
+        # made the choice.
         "selection": recipe.get("selection"),
         "acquisition": meta,
         "phase": {
@@ -171,12 +139,10 @@ def process_recipe(
 
 
 def _stable_seed(sample_id: str) -> int:
-    """
-    Deterministic 32-bit seed from a sample id.
+    """Deterministic 32-bit FNV-1a seed from a sample id.
 
-    Python's built-in hash() is randomised per process (PYTHONHASHSEED), which
-    would give a different phase map on every rebuild. A tiny FNV-1a hash
-    avoids that and keeps the store reproducible.
+    Python's hash() is randomised per process (PYTHONHASHSEED), which would
+    give a different phase map on every rebuild.
     """
     hash_value = 2166136261
     for byte in sample_id.encode("utf-8"):
@@ -185,17 +151,13 @@ def _stable_seed(sample_id: str) -> int:
 
 
 def _hermitian_asymmetry(kspace: np.ndarray) -> float:
-    """
-    How far this k-space is from being conjugate-symmetric, in [0, ~1.4].
+    """How far this k-space is from conjugate symmetry, in [0, ~1.4].
 
-    A real-valued image has perfectly Hermitian k-space: K(-k) = conj(K(k)),
-    so this number would be ~0 and half the data would be redundant. Our
-    synthetic phase breaks that symmetry, which is what real scanner data
-    looks like. Reporting the number keeps us honest about what the
-    simulation is doing.
+    A real image gives K(-k) = conj(K(k)) and would score ~0, making half the
+    data redundant. The synthetic phase breaks that, as real scanner data does;
+    reporting the number keeps us honest about what is being simulated.
     """
-    # Do the mirroring on the un-shifted array, where index -k is simply
-    # (N - k) mod N.
+    # Mirror on the un-shifted array, where index -k is just (N - k) mod N.
     uncentered = np.fft.ifftshift(kspace)
     mirrored = uncentered[
         np.ix_(
@@ -209,12 +171,10 @@ def _hermitian_asymmetry(kspace: np.ndarray) -> float:
 
 
 def _dynamic_range_db(kspace: np.ndarray) -> float:
-    """
-    Ratio of the largest to the median k-space magnitude, in decibels.
+    """Peak-to-median k-space magnitude in dB, typically 60-80 for a medical image.
 
-    Typically 60-80 dB for a medical image: the DC term dwarfs everything
-    else. This is exactly why k-space is always displayed on a log scale --
-    on a linear scale you would see one bright dot and nothing more.
+    The DC term dwarfs everything else, which is why k-space is always shown on
+    a log scale.
     """
     magnitude = np.abs(kspace)
     median = float(np.median(magnitude))
@@ -222,11 +182,6 @@ def _dynamic_range_db(kspace: np.ndarray) -> float:
     if median <= 0 or peak <= 0:
         return 0.0
     return 20.0 * np.log10(peak / median)
-
-
-# ---------------------------------------------------------------------------
-# PNG writing
-# ---------------------------------------------------------------------------
 
 
 def _save_gray_png(image01: np.ndarray, path: str) -> None:
@@ -239,13 +194,10 @@ def _save_gray_png(image01: np.ndarray, path: str) -> None:
 
 
 def _save_kspace_png(kspace: np.ndarray, path: str) -> None:
-    """
-    Save centered k-space as a false-colour log-magnitude PNG.
+    """Save centered k-space as a false-colour log-magnitude PNG.
 
-    log(1 + |K|) compresses the enormous dynamic range (see _dynamic_range_db)
-    into something a display can show; without it the picture is one white
-    pixel on black. The colour map is purely cosmetic -- it makes the low-level
-    high-frequency structure at the edges visible in a demo.
+    Without the log it is one white pixel on black. The colour map is cosmetic
+    -- it makes the faint high-frequency structure at the edges visible.
     """
     from matplotlib import colormaps
     from PIL import Image
@@ -261,13 +213,8 @@ def _save_kspace_png(kspace: np.ndarray, path: str) -> None:
     Image.fromarray(rgb, mode="RGB").save(path)
 
 
-# ---------------------------------------------------------------------------
-# Contact sheet (optional, for eyeballing the whole store at once)
-# ---------------------------------------------------------------------------
-
-
 def save_gallery(out_dir: str, records: list[dict], path: str) -> str:
-    """Write a single figure showing every sample image in the store."""
+    """Write a single contact sheet showing every sample image in the store."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -294,11 +241,6 @@ def save_gallery(out_dir: str, records: list[dict], path: str) -> str:
     fig.savefig(path, dpi=110, bbox_inches="tight")
     plt.close(fig)
     return path
-
-
-# ---------------------------------------------------------------------------
-# Store README, written alongside the data
-# ---------------------------------------------------------------------------
 
 
 def write_store_readme(out_dir: str, manifest: dict) -> None:
@@ -398,11 +340,6 @@ def write_store_readme(out_dir: str, manifest: dict) -> None:
 
     with open(os.path.join(out_dir, "README.md"), "w", encoding="utf-8") as handle:
         handle.write("\n".join(lines))
-
-
-# ---------------------------------------------------------------------------
-# Command line
-# ---------------------------------------------------------------------------
 
 
 def main(argv: list[str] | None = None) -> int:

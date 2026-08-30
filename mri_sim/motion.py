@@ -1,47 +1,26 @@
-"""
-motion.py -- Task A: corrupting k-space with patient motion during a scan.
+"""Task A: corrupting k-space with patient motion during a scan.
 
-THE PHYSICS, IN ONE LINE: THE FOURIER SHIFT THEOREM
------------------------------------------------------
-    f(x - a)   <-->   F(k) * exp(-j*2*pi*k*a/N)
+The whole module rests on the Fourier shift theorem:
 
-Translating the object in image space does not touch the *magnitude* of its
-k-space at all -- it only stamps a linear **phase ramp** across k-space. This
-is why a single, uniform patient shift is harmless: `apply_motion` with the
-same `(dy, dx)` on every row reconstructs to *exactly* the shifted image
-(see `verify_shift_theorem` below), because a uniform ramp is just what a
-shifted object's k-space looks like.
+    f(x - a)  <-->  F(k) * exp(-j*2*pi*k*a/N)
 
-The artifact appears only when the shift is **not** uniform across the scan.
-`cartesian_mask` fills k-space one row at a time, and each row is one
-repetition of the pulse sequence -- i.e. one moment in time. So row index `i`
-IS the acquisition time for that row (row 0 earliest, row `ny - 1` latest). If
-the patient is in a different place for different rows, each row carries a
-*different* phase ramp. The reconstruction is then the inverse FFT of a
-k-space that is not the transform of any single, consistent object -- and
-that inconsistency between rows is exactly what shows up as ghosting, blur,
-or streaking, depending on how the motion evolves over the scan.
+Translating the object leaves the k-space magnitude untouched and only stamps
+a linear phase ramp. So a uniform shift is harmless -- it reconstructs to
+exactly the shifted image (verify_shift_theorem checks this).
 
-This module only ever changes the *phase* of k-space samples, never their
-magnitude and never which samples are considered "measured" -- motion and
-undersampling are independent, orthogonal corruptions, and `apply_motion`
-can be composed with any mask from `kspace.py` in either order relative to
-`apply_mask` (motion does not care which points are subsequently zeroed).
+The artifact appears when the shift is not uniform across the scan. A
+Cartesian scan fills one row per pulse repetition, so row index i is the
+acquisition time for that row. If the patient moves between rows, each row
+carries a different ramp and the result is no longer the transform of any one
+consistent object -- which shows up as ghosting, blur, or streaking.
 
-WHY WE ONLY SHIFT ALONG y (THE PHASE-ENCODE AXIS)
----------------------------------------------------
-Every model below returns displacements of the form `(dy, 0.0)`. This is a
-deliberate simplification, not a limitation of `apply_motion` (which accepts
-general `(dy, dx)`). A shift confined to y changes only a *per-row phase*
-(because `ky` is constant across a row, `exp(-2j*pi*ky*dy/ny)` is a single
-complex scalar multiplying the whole line) -- it does not redistribute a
-row's energy across columns. That is what produces the clean, textbook
-"discrete ghost copies displaced along the phase-encode axis" artifact this
-module is built to demonstrate. A time-varying *x* shift would instead smear
-each row's content sideways by a different amount, which reads as blur/shear
-rather than discrete ghosts. Keeping motion on the y axis keeps the artifact
-legible and matches the "ghosts along the vertical axis" check in
-TASKS_MOTION_AND_ROI.md.
+Only phase is changed here, never magnitude and never which points count as
+measured, so motion composes with any mask in either order.
+
+Every model returns (dy, 0.0): a y-only shift is a single per-row phase
+scalar, giving the clean textbook ghosts along the phase-encode axis. A
+time-varying x shift would smear each row sideways instead, reading as blur.
+apply_motion itself accepts general (dy, dx).
 """
 
 from __future__ import annotations
@@ -50,33 +29,16 @@ import numpy as np
 
 from .kspace import from_kspace, to_kspace
 
-# ---------------------------------------------------------------------------
-# 1. The core function: stamp a per-row phase ramp onto k-space
-# ---------------------------------------------------------------------------
-
 
 def apply_motion(
     kspace_centered: np.ndarray,
     displacements: list[tuple[float, float]],
 ) -> np.ndarray:
-    """
-    Corrupt centered k-space with patient translation during the scan.
+    """Corrupt centered k-space with patient translation during the scan.
 
-    Parameters
-    ----------
-    kspace_centered : 2-D complex array
-        Centered k-space (DC at [ny//2, nx//2]), same convention as the rest
-        of the package -- see kspace.py's module docstring.
-    displacements : sequence of (dy, dx), length ny
-        displacements[i] = where the patient was, in pixels, when row i was
-        acquired. `dy`/`dx` are in image-space pixels, positive meaning the
-        same direction as `np.roll`'s shift argument (see verification
-        below).
-
-    Returns
-    -------
-    2-D complex array, same shape as the input. Only phase is changed --
-    `np.abs(out) == np.abs(kspace_centered)` up to floating point.
+    displacements[i] is where the patient was, in image-space pixels, when
+    row i was acquired; positive matches np.roll's sign. Needs one entry per
+    row. Only phase changes, so abs(out) == abs(input) up to floating point.
     """
     ny, nx = kspace_centered.shape
     if len(displacements) != ny:
@@ -85,11 +47,11 @@ def apply_motion(
         )
 
     cy, cx = ny // 2, nx // 2
-    kx = np.arange(nx) - cx  # frequency index along the row; same for every i
+    kx = np.arange(nx) - cx  # same for every row
     out = kspace_centered.copy()
 
     for i, (dy, dx) in enumerate(displacements):
-        ky = i - cy  # this row's frequency index -- constant across the row
+        ky = i - cy  # constant across the row
         ramp = np.exp(-2j * np.pi * (ky * dy / ny + kx * dx / nx))
         out[i, :] = kspace_centered[i, :] * ramp
 
@@ -99,20 +61,12 @@ def apply_motion(
 def verify_shift_theorem(
     shape: tuple[int, int] = (64, 64), dy: int = 3, dx: int = -2
 ) -> float:
-    """
-    Sanity check for `apply_motion`: a UNIFORM displacement (the same (dy,
-    dx) on every row) must reconstruct to exactly `np.roll(image, (dy, dx))`.
+    """A uniform displacement must reconstruct to exactly np.roll(image, (dy, dx)).
 
-    This is the load-bearing check for this whole module. If it does not
-    hold to within a couple of machine epsilons, the ramp formula above has
-    a sign or axis error and nothing built on top of `apply_motion` -- the
-    three motion models, the per-spoke variant -- is meaningful. Run this
-    before trusting anything else in this file.
-
-    Returns
-    -------
-    float : max absolute pixel error between the two reconstructions
-            (expected to be ~1e-15, machine-precision noise).
+    The load-bearing check for this module: if it does not hold to a couple of
+    machine epsilons, the ramp formula has a sign or axis error and nothing
+    built on apply_motion means anything. Returns the max absolute pixel
+    error, expected around 1e-15.
     """
     ny = shape[0]
     rng = np.random.default_rng(0)
@@ -126,45 +80,24 @@ def verify_shift_theorem(
     return float(np.abs(shifted_via_kspace - shifted_via_roll).max())
 
 
-# ---------------------------------------------------------------------------
-# 2. Motion models: displacement over time, for a Cartesian (row-per-time) scan
-# ---------------------------------------------------------------------------
-#
-# Each of these returns a list of length `ny` -- one (dy, dx) per row, ready
-# to hand straight to `apply_motion`. All three shift along y only; see the
-# module docstring for why.
+# The three models below return one (dy, dx) per row, ready for apply_motion.
 
 
 def sudden_jerk(ny: int, amp: float, at: int) -> list[tuple[float, float]]:
-    """
-    A single abrupt movement partway through the scan: the patient sits
-    still, then jumps to a new position and stays there.
+    """Patient sits still, jumps to a new position at row `at`, stays there.
 
-    displacement[i] = 0 for i < at, amp for i >= at.
-
-    Rows before `at` and rows after `at` are each internally consistent --
-    they describe two different, perfectly sharp objects offset by `amp`
-    pixels. The reconstruction is therefore a superposition of two sharp
-    copies of the object rather than a smear: a **discrete ghost**, the
-    signature artifact of a step-function motion event.
+    Rows before and after are each internally consistent, describing two sharp
+    objects offset by amp -- so the result is a discrete ghost, not a smear.
     """
     return [(0.0, 0.0) if i < at else (amp, 0.0) for i in range(ny)]
 
 
 def slow_drift(ny: int, amp: float) -> list[tuple[float, float]]:
-    """
-    A continuous, monotonic drift from 0 to `amp` pixels over the course of
-    the scan (e.g. the patient gradually sinking into the table).
+    """Linear drift from 0 to amp over the scan, e.g. sinking into the table.
 
-    displacement[i] = amp * i / (ny - 1) -- linear ramp, 0 at row 0 to
-    `amp` at the last row.
-
-    Because the position changes by a little bit between *every* pair of
-    adjacent rows rather than at one instant, there is no pair of large,
-    internally-consistent blocks the way there is for `sudden_jerk`. Instead
-    every row disagrees slightly with its neighbours, which spreads the
-    inconsistency continuously across k-space and reconstructs as **blur**
-    rather than a distinct second copy.
+    Every row disagrees slightly with its neighbours rather than splitting into
+    two consistent blocks, so the inconsistency spreads across k-space and
+    reconstructs as blur rather than a second copy.
     """
     if ny == 1:
         return [(0.0, 0.0)]
@@ -172,53 +105,31 @@ def slow_drift(ny: int, amp: float) -> list[tuple[float, float]]:
 
 
 def periodic(ny: int, amp: float, cycles: float) -> list[tuple[float, float]]:
-    """
-    Repetitive motion, e.g. breathing: displacement oscillates sinusoidally
-    for the whole scan.
+    """Sinusoidal motion, e.g. breathing: amp * sin(2*pi*cycles*i/ny).
 
-    displacement[i] = amp * sin(2*pi*cycles*i/ny).
-
-    A sinusoid is itself just a pair of complex exponentials, so modulating
-    k-space rows by a sinusoidal phase error is (to first order) equivalent
-    to convolving the true image with a pair of delta functions offset in
-    the phase-encode direction -- i.e. it produces a **regular train of
-    ghosts**, spaced according to `cycles` (the number of breathing cycles
-    that fit in the scan), rather than the single extra copy from
-    `sudden_jerk` or the smear from `slow_drift`.
+    A sinusoid is a pair of complex exponentials, so to first order this
+    convolves the image with two deltas offset along the phase-encode axis --
+    a regular train of ghosts spaced by `cycles`.
     """
     i = np.arange(ny)
     return list(zip((amp * np.sin(2 * np.pi * cycles * i / ny)).tolist(),
                      [0.0] * ny))
 
 
-# ---------------------------------------------------------------------------
-# 3. Per-spoke motion for radial sampling
-# ---------------------------------------------------------------------------
-#
-# THE TRAP: applying `apply_motion` above (per-ROW timing) and then masking
-# with `radial_mask` is physically wrong. `apply_motion` assumes acquisition
-# order follows Cartesian rows; a radial scan instead acquires whole SPOKES,
-# one at a time, and every spoke passes through the k-space center. If we
-# time radial data by row instead of by spoke, the center -- which should be
-# an incoherent average over every spoke's (different) position, and is
-# radial's whole robustness advantage -- gets stamped with a single row's
-# phase error like everything else, and the advantage disappears (see the
-# "per-ROW timing (WRONG for radial)" numbers in TASKS_MOTION_AND_ROI.md).
-#
-# `kspace._draw_spokes` collapses all spokes into one 0/1 mask and throws
-# away which point came from which spoke, so it cannot drive per-spoke
-# timing. `draw_spokes_indexed` below is a separate function with the same
-# geometry that keeps that information, without touching `_draw_spokes`
-# itself (ground rule: existing mask builders are not to be edited).
+# Radial scans acquire whole spokes, not rows, so timing radial data by row is
+# physically wrong: the center should be an incoherent average over every
+# spoke's position -- radial's whole robustness advantage -- but per-row timing
+# stamps it with one row's phase error and the advantage vanishes.
+# kspace._draw_spokes collapses spokes into a 0/1 mask and discards which point
+# came from which spoke, so the indexed version below duplicates its geometry
+# rather than editing it.
 
 
 def n_spokes_for_ratio(shape: tuple[int, int], ratio: float) -> int:
-    """
-    Smallest spoke count whose `draw_spokes_indexed` footprint covers at
-    least `ratio` of k-space -- the same binary search `radial_mask` runs
-    internally, exposed here because callers that need per-spoke timing have
-    to build the indexed map themselves and so cannot go through
-    `radial_mask` (which only returns the flattened 0/1 mask).
+    """Smallest spoke count covering `ratio` of k-space.
+
+    Same search radial_mask runs internally, exposed because callers needing
+    per-spoke timing must build the indexed map themselves.
     """
     lo, hi = 1, 4 * max(shape)
     best_n = hi
@@ -233,30 +144,18 @@ def n_spokes_for_ratio(shape: tuple[int, int], ratio: float) -> int:
 
 
 def draw_spokes_indexed(shape: tuple[int, int], n_spokes: int) -> np.ndarray:
-    """
-    Same rasterized-spoke geometry as `kspace._draw_spokes`, but returns an
-    int array where the value is `(spoke_index + 1)` and 0 means unsampled,
-    instead of a plain 0/1 mask. This lets us later ask "which spoke, and
-    therefore which acquisition time, does this k-space point belong to?"
+    """Like kspace._draw_spokes, but stores spoke_index + 1 instead of 1.
 
-    Deliberately duplicates `_draw_spokes`'s angle/step construction rather
-    than reusing it, since that function returns only a flattened mask.
+    Keeps track of which spoke -- and so which acquisition time -- each point
+    belongs to.
 
-    TIE-BREAK NEAR THE CENTER: every spoke passes through the center, so
-    spokes constantly land on grid points another spoke already claimed --
-    within roughly `n_spokes / pi` pixels of the center, adjacent spokes are
-    closer together than one pixel. A naive "first spoke to reach it wins"
-    rule (looping spokes in angle order) is *not* a harmless arbitrary
-    tie-break here: it systematically hands almost all of that crowded,
-    high-energy central region to whichever spoke happens to be processed
-    first, while later spokes get almost none of it. That defeats the whole
-    point of per-spoke motion timing -- it re-concentrates the corruption
-    onto a handful of spokes' acquisition times instead of spreading it
-    incoherently across all of them, which is exactly the property that
-    makes radial sampling motion-robust in the first place. So each
-    contested point is instead given to whichever spoke's angle is
-    geometrically closest to that point's own true polar angle -- a
-    tie-break with no directional bias.
+    Tie-break matters near the center: every spoke crosses it, and within about
+    n_spokes/pi pixels adjacent spokes are closer than one pixel apart. A
+    "first spoke wins" rule would hand that crowded, high-energy region to
+    whichever spoke is processed first, re-concentrating the corruption onto a
+    few acquisition times and destroying exactly the incoherence that makes
+    radial motion-robust. So contested points go to whichever spoke's angle is
+    closest to the point's own polar angle, which has no directional bias.
     """
     ny, nx = shape
     cy, cx = ny // 2, nx // 2
@@ -274,11 +173,8 @@ def draw_spokes_indexed(shape: tuple[int, int], n_spokes: int) -> np.ndarray:
         inside = (yy >= 0) & (yy < ny) & (xx >= 0) & (xx < nx)
         yy, xx = yy[inside], xx[inside]
 
-        # True polar angle of each candidate point (mod pi, matching the
-        # [0, pi) range spokes are drawn over -- a spoke and its 180-degree
-        # rotation are the same line). The center point itself has an
-        # undefined angle (0/0); it is equally "on" every spoke, so leave it
-        # at whatever the first spoke assigns -- one pixel, no real effect.
+        # Mod pi to match the [0, pi) range spokes are drawn over. The center
+        # pixel's angle is undefined (0/0) but it lies on every spoke anyway.
         true_angle = np.arctan2(yy - cy, xx - cx) % np.pi
         gap = np.abs(true_angle - angle)
         gap = np.minimum(gap, np.pi - gap)  # wraparound at the 0/pi seam
@@ -295,24 +191,15 @@ def apply_motion_radial(
     spoke_index: np.ndarray,
     spoke_displacements: list[tuple[float, float]],
 ) -> np.ndarray:
-    """
-    Corrupt centered k-space with motion timed per RADIAL SPOKE rather than
-    per row.
+    """Motion timed per radial spoke rather than per row.
 
-    Parameters
-    ----------
-    kspace_centered : 2-D complex array, centered.
-    spoke_index : int array from `draw_spokes_indexed(shape, n_spokes)`.
-        `spoke_index == 0` marks points not on any spoke; left untouched
-        (they will be zeroed by the mask downstream anyway).
-    spoke_displacements : sequence of (dy, dx), length n_spokes.
-        spoke_displacements[s] = where the patient was during spoke s.
+    spoke_index comes from draw_spokes_indexed; 0 means not on any spoke and is
+    left alone (the mask zeroes it downstream anyway). One displacement per
+    spoke.
 
-    Unlike `apply_motion`, which multiplies a whole row by one phase ramp
-    computed from that row's `ky` alone, this uses each point's own true
-    `(ky, kx)` position -- a spoke is not horizontal in general, so its
-    points do not share a single `ky`. Using the true coordinates is what
-    makes the physics correct for non-Cartesian trajectories.
+    Unlike apply_motion, this uses each point's own (ky, kx): a spoke is not
+    horizontal, so its points do not share a single ky. That is what makes the
+    physics right for non-Cartesian trajectories.
     """
     ny, nx = kspace_centered.shape
     if spoke_index.shape != (ny, nx):
@@ -344,9 +231,7 @@ def apply_motion_radial(
 
 
 if __name__ == "__main__":
-    # Same pattern as the round-trip assert in main.py: a cheap, load-bearing
-    # correctness check that runs every time this module is executed
-    # directly. See `verify_shift_theorem`'s docstring for why this matters.
+    # Cheap load-bearing check, run whenever this module is executed directly.
     err = verify_shift_theorem()
     print(f"uniform-shift check max error: {err:.3e}")
     assert err < 1e-9, "apply_motion does not match np.roll for a uniform shift"

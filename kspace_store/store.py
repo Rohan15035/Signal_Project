@@ -1,27 +1,19 @@
-"""
-store.py -- read the built k-space store.
+"""Read the built k-space store.
 
-This is the half of the package a web app or notebook uses. It deliberately
-depends on **numpy and the standard library only**: no h5py, pydicom, nibabel
-or pillow. Those are needed to *build* the store, never to read it, so a
-deployed app can ship with a tiny dependency list.
-
-Typical use::
-
-    from kspace_store.store import KSpaceStore
+The half of the package an app or notebook uses. Depends on numpy and the
+standard library only -- h5py, pydicom, nibabel and pillow are needed to build
+the store, never to read it, so a deployed app ships a tiny dependency list.
 
     store = KSpaceStore("data/kspace_store")
-
     for record in store.records():                 # metadata only, no arrays
         print(record["id"], record["title"])
 
-    sample = store.load("spine-0001-t2-sagittal")  # arrays, lazily read
-    sample.kspace          # (N, N) complex64, centered (DC in the middle)
-    sample.image           # (N, N) float32 ground truth in [0, 1]
-    sample.reconstruct(mask)   # zero-fill an arbitrary mask and inverse FFT
+    sample = store.load("spine-0001-t2-sagittal")
+    sample.kspace              # (N, N) complex64, centered
+    sample.image               # (N, N) float32 ground truth in [0, 1]
+    sample.reconstruct(mask)   # zero-fill and inverse FFT
 
-Everything is cached in memory after first read, so dragging a slider in a
-web app re-reads nothing from disk.
+Samples are cached after first read, so dragging a slider re-reads nothing.
 """
 
 from __future__ import annotations
@@ -34,31 +26,14 @@ from functools import lru_cache
 import numpy as np
 
 
-# ---------------------------------------------------------------------------
-# One sample
-# ---------------------------------------------------------------------------
-
-
 @dataclass
 class Sample:
-    """
-    One entry of the store: its metadata plus its arrays.
+    """One store entry: manifest metadata plus its arrays.
 
-    Attributes
-    ----------
-    id : str
-    meta : dict
-        The manifest record: title, collection, tags, source_file,
-        acquisition parameters, derived stats.
-    kspace : complex64 array
-        Centered, fully-sampled k-space. This is the "measurement" a
-        simulated scan draws from.
-    image : float32 array
-        Ground-truth magnitude image in [0, 1]; the reference for PSNR/SSIM.
-    phase : float32 array
-        The synthetic phase map used when generating the k-space.
-    tumor_mask : uint8 array or None
-        Expert tumour segmentation, where the source dataset provided one.
+    kspace is centered and fully sampled -- the measurement a simulated scan
+    draws from. image is the [0, 1] reference for PSNR/SSIM. phase is the
+    synthetic phase map used to generate the k-space. tumor_mask is the expert
+    segmentation where the source dataset provided one.
     """
 
     id: str
@@ -67,8 +42,6 @@ class Sample:
     image: np.ndarray
     phase: np.ndarray
     tumor_mask: np.ndarray | None = field(default=None)
-
-    # -- convenience ------------------------------------------------------
 
     @property
     def shape(self) -> tuple[int, int]:
@@ -79,23 +52,14 @@ class Sample:
         return self.meta.get("title", self.id)
 
     def reconstruct(self, mask: np.ndarray | None = None) -> np.ndarray:
-        """
-        Zero-fill reconstruction: keep the sampled points, inverse FFT, take
-        the magnitude.
+        """Zero-fill reconstruction; mask=None means fully sampled.
 
-        This is the same three-line operation as Stage 1's
-        `mri_sim.kspace.reconstruct`, repeated here so the store stays
-        importable on its own.
-
-        Parameters
-        ----------
-        mask : boolean array of the same shape, or None
-            True where k-space was measured. None means "fully sampled",
-            which returns the ground-truth image back.
+        Same operation as mri_sim.kspace.reconstruct, repeated here so the
+        store stays importable on its own.
         """
         kspace = self.kspace if mask is None else self.kspace * mask.astype(bool)
-        # ifftshift undoes the centering, because numpy's ifft2 expects DC in
-        # the corner. Then |.| discards the phase, as a scanner console does.
+        # ifftshift undoes the centering for numpy; abs discards phase, as a
+        # scanner console does.
         return np.abs(np.fft.ifft2(np.fft.ifftshift(kspace)))
 
     def log_kspace(self, mask: np.ndarray | None = None) -> np.ndarray:
@@ -104,19 +68,10 @@ class Sample:
         return np.log1p(np.abs(kspace))
 
 
-# ---------------------------------------------------------------------------
-# The store
-# ---------------------------------------------------------------------------
-
-
 class KSpaceStore:
-    """
-    Read-only view of a built store directory.
+    """Read-only view of a built store directory.
 
-    Parameters
-    ----------
-    root : str
-        Directory containing `manifest.json`, `samples/` and `previews/`.
+    root must contain manifest.json, samples/ and previews/.
     """
 
     def __init__(self, root: str = os.path.join("data", "kspace_store")):
@@ -131,10 +86,8 @@ class KSpaceStore:
             self.manifest = json.load(handle)
 
         self._by_id = {record["id"]: record for record in self.manifest["samples"]}
-        # Bind the cache to the instance so two stores do not share entries.
+        # Bound to the instance so two stores do not share cache entries.
         self._load_cached = lru_cache(maxsize=None)(self._load_uncached)
-
-    # -- metadata ---------------------------------------------------------
 
     def __len__(self) -> int:
         return len(self._by_id)
@@ -147,13 +100,9 @@ class KSpaceStore:
         return [record["id"] for record in self.manifest["samples"]]
 
     def records(self, collection: str | None = None, tag: str | None = None) -> list[dict]:
-        """
-        Manifest records, optionally filtered. Cheap -- no arrays are read.
+        """Manifest records, optionally filtered. Cheap -- reads no arrays.
 
-        Handy for building a gallery/dropdown in a UI:
-
-            store.records(collection="MRI_Dataset")
-            store.records(tag="tumour")
+        For building a gallery or dropdown: store.records(tag="tumour").
         """
         records = self.manifest["samples"]
         if collection is not None:
@@ -188,8 +137,6 @@ class KSpaceStore:
             "kspace": os.path.join(self.root, files["kspace_png"]),
         }
 
-    # -- arrays -----------------------------------------------------------
-
     def load(self, sample_id: str) -> Sample:
         """Load one sample (cached after the first call)."""
         return self._load_cached(sample_id)
@@ -208,7 +155,7 @@ class KSpaceStore:
             )
 
     def load_all(self) -> list[Sample]:
-        """Every sample. ~30 MB in memory for the default 40x256x256 store."""
+        """Every sample. ~30 MB for the default 40x256x256 store."""
         return [self.load(sample_id) for sample_id in self.ids()]
 
     def __repr__(self) -> str:
@@ -218,11 +165,6 @@ class KSpaceStore:
         )
 
 
-# ---------------------------------------------------------------------------
-# Module-level convenience, for quick interactive use
-# ---------------------------------------------------------------------------
-
-
 def open_store(root: str = os.path.join("data", "kspace_store")) -> KSpaceStore:
-    """`KSpaceStore(root)`, spelled as a function."""
+    """KSpaceStore(root), spelled as a function."""
     return KSpaceStore(root)

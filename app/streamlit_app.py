@@ -1,35 +1,15 @@
-"""
-streamlit_app.py -- the interactive MRI k-space simulator.
+"""Interactive front end for mri_sim.
 
-Run it from the project root:
+    streamlit run app/streamlit_app.py      # from the project root
 
-    streamlit run app/streamlit_app.py
+Reads the pre-built k-space store, so it starts instantly and never touches
+the raw dataset. One tab per question: what undersampling does, which
+frequencies carry what, what noise does, whether CS beats zero-filling, and
+how PSNR/SSIM fall off with acceleration.
 
-then open http://localhost:8501 in a browser.
-
-WHAT THIS IS
-------------
-A teaching front end for everything in `mri_sim`, driven by the pre-built
-k-space sample store so it starts instantly and never touches the 12 GB raw
-dataset. Five tabs, each answering one question:
-
-    1. Acquire      -- what does undersampling do to the image?
-    2. Center vs edges -- which frequencies carry what?
-    3. Noise        -- what does scanner noise do, and how does it interact
-                       with undersampling?
-    4. Compressed sensing -- can we do better than assuming the missing data
-                       was zero?
-    5. Sweep        -- how do PSNR and SSIM fall off as we accelerate?
-
-DESIGN NOTES
-------------
-* The heavy work is cached with `@st.cache_data`, so dragging a slider only
-  recomputes what actually changed. A masked reconstruction is ~1 ms, so the
-  UI keeps up with the slider.
-* Every array that crosses a function boundary is centered k-space, matching
-  the convention used everywhere else in the project.
-* Reconstructions are displayed with a fixed [0, 1] range, never auto-scaled,
-  so the brightness you see is the brightness the reconstruction has.
+Heavy work is cached so dragging a slider only recomputes what changed.
+Reconstructions display on a fixed [0, 1] range, never auto-scaled, so the
+brightness shown is the brightness they have.
 """
 
 from __future__ import annotations
@@ -55,9 +35,7 @@ STORE_PATH = os.path.join("data", "kspace_store")
 SWEEP_RATIOS = [1.0, 0.5, 0.25, 0.125, 0.0625]
 
 
-# ---------------------------------------------------------------------------
 # Data access, cached
-# ---------------------------------------------------------------------------
 
 
 @st.cache_resource
@@ -68,15 +46,10 @@ def get_store() -> KSpaceStore:
 
 @st.cache_data(show_spinner=False)
 def load_sample(sample_id: str):
-    """
-    Arrays for one sample.
+    """Arrays for one sample, as plain numpy so Streamlit's cache can hash them.
 
-    Returned as plain numpy arrays rather than the Sample dataclass because
-    Streamlit's cache hashes what it stores, and arrays hash cleanly.
-
-    The k-space is promoted to complex128 here. It is stored as complex64 to
-    halve the file size, but the iterative reconstruction runs hundreds of
-    FFTs and is better off in double precision.
+    k-space is stored complex64 to halve the file size but promoted to
+    complex128 here, since the iterative reconstruction runs hundreds of FFTs.
     """
     sample = get_store().load(sample_id)
     return (
@@ -102,11 +75,7 @@ def acquire(
     snr_db: float | None,
     seed: int,
 ) -> tuple[np.ndarray, np.ndarray, dict]:
-    """
-    Simulate one scan: build the mask, sample k-space, add noise, reconstruct.
-
-    Returns (acquired k-space, reconstruction, metrics).
-    """
+    """One scan: mask, sample, noise, reconstruct -> (k-space, image, metrics)."""
     image, full_kspace, _, _ = load_sample(sample_id)
     mask = build_mask(kind, image.shape, ratio, seed)
 
@@ -163,18 +132,15 @@ def sweep(sample_id: str, snr_db: float | None, seed: int) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-# ---------------------------------------------------------------------------
 # Display helpers
-# ---------------------------------------------------------------------------
 
 
 def show_image(array: np.ndarray, caption: str, stretch: bool = False) -> None:
-    """
-    Render a float image as a grayscale panel.
+    """Render a float image as a grayscale panel.
 
-    `stretch=False` pins the display range to [0, 1] so brightness is
-    comparable between panels -- important, because "the reconstruction is
-    darker than the original" is a real finding, not a display artifact.
+    stretch=False pins the range to [0, 1] so brightness is comparable between
+    panels -- "the reconstruction is darker" is a real finding, not a display
+    artifact.
     """
     data = np.asarray(array, dtype=np.float64)
     if stretch:
@@ -183,10 +149,8 @@ def show_image(array: np.ndarray, caption: str, stretch: bool = False) -> None:
     else:
         data = np.clip(data, 0.0, 1.0)
 
-    # PNG, not Streamlit's default JPEG. This whole app is about the artifacts
-    # that appear when high frequencies are discarded -- rendering the panels
-    # through a lossy codec that does exactly that would add a second, fake
-    # layer of the very effect being demonstrated.
+    # PNG, not Streamlit's default JPEG: a lossy codec discards high
+    # frequencies, which is the very effect this app is demonstrating.
     st.image(
         data, caption=caption, use_container_width=True,
         clamp=True, output_format="PNG",
@@ -219,9 +183,7 @@ def metric_row(scores: dict, baseline: dict | None = None) -> None:
     )
 
 
-# ---------------------------------------------------------------------------
 # Page
-# ---------------------------------------------------------------------------
 
 st.set_page_config(
     page_title="MRI k-Space Simulator",
@@ -244,7 +206,7 @@ except FileNotFoundError:
     )
     st.stop()
 
-# --- Sidebar: the scan setup ------------------------------------------------
+# Sidebar: the scan setup
 
 with st.sidebar:
     st.header("Scan setup")
@@ -304,7 +266,7 @@ with st.sidebar:
         f"{store.manifest['resolution']}×{store.manifest['resolution']}"
     )
 
-# --- Load the chosen subject ------------------------------------------------
+# Load the chosen subject
 
 image, full_kspace, tumor_mask, meta = load_sample(sample_id)
 mask = build_mask(strategy, image.shape, ratio, int(seed))
@@ -321,9 +283,7 @@ tabs = st.tabs([
     "ℹ️ About this sample",
 ])
 
-# ---------------------------------------------------------------------------
 # Tab 1: the main pipeline
-# ---------------------------------------------------------------------------
 
 with tabs[0]:
     st.subheader("The pipeline, end to end")
@@ -374,9 +334,7 @@ with tabs[0]:
         }[strategy]
     )
 
-# ---------------------------------------------------------------------------
 # Tab 2: centre vs edges
-# ---------------------------------------------------------------------------
 
 with tabs[1]:
     st.subheader("Which part of k-space carries what?")
@@ -438,9 +396,7 @@ with tabs[1]:
         "realistic mask in tab 1 protects the centre."
     )
 
-# ---------------------------------------------------------------------------
 # Tab 3: noise
-# ---------------------------------------------------------------------------
 
 with tabs[2]:
     st.subheader("Scanner noise lives in k-space")
@@ -496,9 +452,7 @@ with tabs[2]:
             "true black."
         )
 
-# ---------------------------------------------------------------------------
 # Tab 4: compressed sensing
-# ---------------------------------------------------------------------------
 
 with tabs[3]:
     st.subheader("Compressed sensing: a better guess at the missing data")
@@ -562,9 +516,7 @@ with tabs[3]:
             "~0.15 and CS pulls ahead on both."
         )
 
-# ---------------------------------------------------------------------------
 # Tab 5: the sweep
-# ---------------------------------------------------------------------------
 
 with tabs[4]:
     st.subheader("Quality versus acceleration")
@@ -605,9 +557,7 @@ with tabs[4]:
         mime="text/csv",
     )
 
-# ---------------------------------------------------------------------------
 # Tab 6: provenance
-# ---------------------------------------------------------------------------
 
 with tabs[5]:
     st.subheader(meta["title"])
