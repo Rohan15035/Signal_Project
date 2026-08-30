@@ -81,7 +81,9 @@ Three layers, each usable on its own.
 
 The core signal processing. Forward FFT, five sampling masks, zero-filled
 reconstruction, PSNR/SSIM scoring, publication-quality figures. Plus the Stage 2
-additions: k-space noise simulation and a compressed-sensing reconstruction.
+additions: k-space noise simulation and a compressed-sensing reconstruction, and
+**reduced-FOV (inner-volume) imaging** — scanning only a box around a lesion,
+16x faster at full resolution (`mri_sim/roi.py`).
 
 ### Layer 2 — the k-space sample store (`kspace_store/`, `data/kspace_store/`)
 
@@ -101,7 +103,7 @@ Total: 42 MB, loads in milliseconds, needs only NumPy to read.
 
 ### Layer 3 — the interactive web app (`app/streamlit_app.py`)
 
-Six tabs, driven by sliders, running at ~1 ms per reconstruction so it updates
+Seven tabs, driven by sliders, running at ~1 ms per reconstruction so it updates
 live as you drag. This is what you demo.
 
 ---
@@ -123,6 +125,8 @@ direct application of the course, and you should name the concepts explicitly.
 | **fftshift conventions** | Centered k-space throughout; `ifftshift` (not `fftshift`) to undo it, which differs for odd sizes |
 | **Additive white Gaussian noise** | Complex AWGN in k-space, with the correct I/Q channel model |
 | **Sparsity & L1 minimisation** | Compressed sensing via iterative soft-thresholding (FISTA) |
+| **Sample spacing vs extent** | `FOV = 1/dk` and `dx = 1/(2·k_max)` are independent knobs — the basis of reduced-FOV imaging: excite a smaller object, space samples further apart, keep the resolution |
+| **Shift theorem** | A circular shift in image space is a linear phase ramp on k-space — why the compact ROI reconstruction comes out wrapped, and how it is un-wrapped |
 
 The convolution-theorem line is the strongest single point in that table. If
 asked "why does Cartesian give ghosts and radial give streaks?", the answer is
@@ -166,7 +170,19 @@ data. The only difference is what we assume about the samples we never measured
 — zero, versus whatever makes the image sparsest while still matching what we
 did measure."*
 
-**⑥ Finish on the About tab.**
+**⑥ Tab 6 (Reduced FOV), R = 4, on a pituitary case.**
+Ask the room first: *"We only care about this lesion — can we scan just that?"*
+Take the obvious answer ("keep that part of k-space") and kill it with the
+bottom panel: deleting one quadrant of k-space damages the **whole** image
+(0.0388 / 0.0223 / 0.0273 / 0.0334 per quadrant), because every sample carries
+every pixel. Then show the real answer: excite only a 64x64 box, sample every
+4th point, and the lesion comes back at **329 dB from 6.25% of k-space** — 16x
+faster, full resolution. Finish on the last column of the comparison: the same
+samples with the RF excitation switched off score **-12.89 dB**. *"The error is
+bigger than the signal. The excitation isn't an optimisation on top of the
+method — it is the method."*
+
+**⑦ Finish on the About tab.**
 Show the source file path, the scanner's real TE/TR, the tumour mask overlay.
 *"Every sample traces back to a specific file in the clinical dataset."*
 
@@ -256,6 +272,21 @@ the stored image to a maximum absolute error of 3.6 × 10⁻⁷ across all 40, w
 is float32 storage precision. The noise simulator is self-checking too — request
 20 dB SNR and it measures back 19.99 dB.
 
+**"Could you scan just the tumour and skip the rest of the head?"**
+Yes — but not by keeping "the part of k-space where the tumour is", because
+there is no such part: every k-space sample is an inner product with the whole
+object, so deleting one quadrant of k-space damages the whole image roughly
+evenly. Position lives in the phase relationships between samples. The real
+answer uses a spatially selective RF pulse to excite only a box around the
+lesion; the object is then R times smaller, so samples can be spaced R times
+further apart without it folding onto itself, while `k_max` — and therefore
+resolution — is unchanged. At R = 4 that is 6.25% of k-space, 16× faster, and
+the ROI comes back to floating-point precision (329 dB). Two catches, both
+demonstrated: R must divide the matrix size exactly, or the aliasing period is
+fractional and the result silently degrades to ~40 dB; and the reconstruction
+must be scored **inside the ROI only**, because outside the box it is just
+periodic replicas that nothing was ever measuring.
+
 **"What would you do next?"**
 Multi-coil parallel imaging (SENSE/GRAPPA), which is how real scanners actually
 accelerate; total-variation regularisation alongside wavelets; and validating
@@ -266,13 +297,19 @@ against genuine raw scanner data from the fastMRI dataset.
 ## 8. Be honest about these
 
 Volunteering limitations before you're asked is worth more than hoping they go
-unnoticed. All four are documented in the README:
+unnoticed. All of them are documented in the README:
 
 - **The k-space is simulated**, via forward FFT from reconstructed images.
 - **The phase map is synthetic** — the source files are magnitude images.
 - **The pathology JPEGs are lossy-compressed at source**, so some high-frequency
   content was gone before we saw it. (Worth noting that JPEG discards high
   frequencies for much the same reason undersampling does.)
+- **The RF excitation in the ROI demo is an ideal box.** A real 2-D selective
+  pulse has a soft transition band a few pixels wide and a few percent of
+  residual signal outside it; we model perfect suppression, which is why the
+  in-ROI PSNR is a round-off-limited 329 dB rather than a merely excellent
+  number. The failure mode we *do* show — no suppression at all — is the one
+  that matters.
 - **Slice selection is automated, not clinical.** The pathology folders mix
   imaging planes with no labels, so slices are chosen by a rule on the pixels:
   left–right mirror correlation ≥ 0.90 identifies axial views (the head is
@@ -293,6 +330,8 @@ unnoticed. All four are documented in the README:
 | FFT round-trip error | 3.6 × 10⁻⁷ |
 | Reconstruction speed | ~1 ms (so sliders are live) |
 | Best CS gain | +2.06 dB, +0.124 SSIM at 16× acceleration |
+| Reduced-FOV ROI at R = 4 | 6.25% of k-space, **16× faster**, 329 dB inside the ROI |
+| Same scan without RF suppression | **−12.89 dB** — error larger than signal |
 | Sampling strategies | 5 (Cartesian, radial, variable-density, centre-only, edges-only) |
 
 ---
@@ -304,4 +343,8 @@ streamlit run app/streamlit_app.py     # then http://localhost:8501
 ```
 
 From the project root. Full instructions, CLI flags and technical detail are in
-[README.md](README.md) sections 7 and 8.
+[README.md](README.md) sections 7, 8 and 9.
+
+```bash
+python main.py --sample brain-pituitary-1111 --roi   # the ROI figures, offline
+```

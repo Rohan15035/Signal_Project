@@ -19,6 +19,14 @@ Usage
     python main.py --ratios 1.0 0.5 0.25    # choose the sampling ratios
     python main.py --outdir results         # where the figures go
 
+Optional extras, all off by default and all purely additive:
+
+    python main.py --center-edges --cs      # Stage 2 demonstrations
+    python main.py --noise-snr 20           # simulate scanner noise
+    python main.py --sample brain-pituitary-1111 --roi --roi-factor 4
+                                            # reduced-FOV (inner-volume) scan
+                                            # of just the lesion
+
 Run `python main.py --help` for the full list.
 """
 
@@ -28,8 +36,10 @@ import argparse
 import csv
 import os
 
+import numpy as np
+
 from mri_sim import kspace as ks
-from mri_sim import cs, io_utils, metrics, noise, visualize
+from mri_sim import cs, io_utils, metrics, noise, roi, visualize
 
 # The three strategies, in the order they appear in every figure and table.
 STRATEGIES = ["cartesian", "radial", "variable_density"]
@@ -120,6 +130,36 @@ def parse_args() -> argparse.Namespace:
         default=80,
         help="compressed-sensing iterations",
     )
+
+    # ---- Reduced-FOV (ROI) imaging: optional, off by default ---------------
+    # A different question from everything above. The sweep asks "how much of
+    # the whole image survives an accelerated scan?"; this asks "can we scan
+    # only the part we care about?". See mri_sim/roi.py.
+    roi_group = parser.add_argument_group("Reduced-FOV ROI imaging (optional)")
+    roi_group.add_argument(
+        "--roi",
+        action="store_true",
+        help="also run the reduced-FOV (inner-volume) demonstration: excite "
+             "only a box around the target, then sample every Rth k-space "
+             "point in both directions",
+    )
+    roi_group.add_argument(
+        "--roi-factor",
+        type=int,
+        default=roi.DEFAULT_REDUCTION,
+        help="reduction factor R. Must divide the image size exactly; the "
+             "scan is R^2 times faster (R=4 -> 6.25%% of k-space, 16x)",
+    )
+    roi_group.add_argument(
+        "--roi-center",
+        type=int,
+        nargs=2,
+        default=None,
+        metavar=("Y", "X"),
+        help="pixel to centre the ROI on. Default: the centroid of the "
+             "sample's expert tumour mask if it has one, otherwise the middle "
+             "of the image",
+    )
     return parser.parse_args()
 
 
@@ -140,9 +180,13 @@ def run(args: argparse.Namespace) -> list[dict]:
         image = sample.image.astype(float)
         full_kspace = sample.kspace.astype(complex)
         source = f"{args.sample} ({sample.meta['source_file']})"
+        # Expert segmentation, on the 12 brain cases that have one. Only the
+        # --roi demo uses it, to decide where to aim the excitation box.
+        tumor_mask = sample.tumor_mask
     else:
         image = io_utils.load_image(args.image, size=size)
         source = args.image if args.image else "skimage.data.shepp_logan_phantom()"
+        tumor_mask = None
         # ---- Step 2: forward FFT -> synthetic k-space ----------------------
         # Done ONCE. Every experiment below re-uses this same full k-space and
         # differs only in which of its points the "scanner" is allowed to keep.
@@ -294,7 +338,109 @@ def run(args: argparse.Namespace) -> list[dict]:
         )
         print("  compressed_sensing.png")
 
+    if args.roi:
+        run_reduced_fov(args, image, tumor_mask)
+
     return runs
+
+
+def run_reduced_fov(args: argparse.Namespace, image, tumor_mask) -> dict:
+    """
+    The reduced-FOV (inner-volume) demonstration -- only runs under `--roi`.
+
+    Three parts, in the order they should be explained:
+
+      1. The misconception. Delete one quadrant of k-space and measure where
+         the damage lands: everywhere, not in one quadrant. So "the lesion is
+         over there, keep that corner of k-space" cannot work.
+      2. The method. Excite only a box of size N/R around the target, then
+         sample every Rth k-space point in both directions. `dk` grows by R
+         (FOV shrinks by R, which is fine -- the object is now that small),
+         `k_max` is untouched (resolution is unchanged).
+      3. The comparison. The same 1/R^2 of k-space spent four different ways,
+         scored **inside the ROI only**, because a targeted scan does not try
+         to reconstruct anything else.
+
+    Note this demo re-derives k-space from the magnitude image with
+    `to_kspace`, rather than using the store's k-space. It has to: the RF
+    excitation is a multiplication in *image* space, so the object has to be
+    modified before the forward transform. The store's synthetic phase is
+    therefore absent here, which changes nothing about the FOV / sample-spacing
+    argument being demonstrated.
+    """
+    # --- Where to aim -------------------------------------------------------
+    if args.roi_center is not None:
+        center = (int(args.roi_center[0]), int(args.roi_center[1]))
+        origin = "--roi-center"
+    elif tumor_mask is not None and np.any(tumor_mask):
+        center = roi.roi_center_from_mask(tumor_mask)
+        origin = "centroid of the expert tumour mask"
+    else:
+        center = (image.shape[0] // 2, image.shape[1] // 2)
+        origin = "middle of the image (no segmentation available)"
+
+    R = args.roi_factor
+    print(f"\nReduced-FOV imaging at R = {R} "
+          f"({R * R}x fewer samples, {100.0 / (R * R):.2f}% of k-space)")
+    print(f"  ROI centre: {center}  ({origin})")
+
+    # Fails loudly rather than silently returning ~40 dB (see
+    # roi._validate_reduction); at the command line that is worth turning into
+    # a readable message instead of a traceback.
+    try:
+        box = roi.roi_box(image.shape, center, R)
+    except ValueError as error:
+        raise SystemExit(f'--roi-factor: {error}')
+    print(f"  Excited box: {box.size}x{box.size} px at (y={box.y0}, x={box.x0})")
+
+    # --- 1. k-space is not spatially local ----------------------------------
+    locality = roi.kspace_locality_demo(image, quadrant="top-left")
+    errors = locality["quadrant_errors"].ravel()
+    print("  Deleting one k-space quadrant -- mean |error| per image quadrant:")
+    print("    " + "   ".join(f"{value:.4f}" for value in errors)
+          + f"   (spread {errors.max() / errors.min():.2f}x, "
+            f"not localised to one quadrant)")
+    visualize.plot_kspace_nonlocality(
+        image, locality, os.path.join(args.outdir, "roi_kspace_nonlocality.png")
+    )
+
+    # --- 2 & 3. the method, against the three things one might try instead ---
+    comparison = roi.compare_roi_strategies(image, center, R, seed=args.seed)
+
+    header = f"  {'strategy':<34}{'k-space':>9}{'accel':>8}{'PSNR (dB)':>12}{'SSIM':>9}"
+    print("\n" + header)
+    print("  " + "-" * (len(header) - 2))
+    for variant in comparison["variants"]:
+        print(
+            f"  {variant['key']:<34}"
+            f"{variant['ratio'] * 100:>8.2f}%"
+            f"{variant['acceleration']:>7.1f}x"
+            f"{variant['psnr']:>12.2f}"
+            f"{variant['ssim']:>9.4f}"
+        )
+    print("  (all scored inside the ROI box only -- see metrics.compute_metrics_in_roi)")
+
+    visualize.plot_reduced_fov_panel(
+        image, comparison, os.path.join(args.outdir, "roi_reduced_fov.png")
+    )
+
+    # --- The compact reconstruction a real scanner would return -------------
+    _, kspace_roi, _ = roi.reduced_fov_acquire(image, center, R)
+    compact_wrapped = roi.compact_reconstruct(kspace_roi, R)
+    compact_centered = roi.compact_reconstruct(kspace_roi, R, box)
+    compact_scores = metrics.compute_metrics(image[box.slices], compact_centered)
+    print(f"\n  Compact reconstruction: {compact_centered.shape[0]}x"
+          f"{compact_centered.shape[1]} from {100.0 / (R * R):.2f}% of k-space, "
+          f"PSNR {compact_scores['psnr']:.2f} dB   SSIM {compact_scores['ssim']:.4f}")
+    visualize.plot_compact_reconstruction(
+        image, comparison, compact_wrapped, compact_centered,
+        os.path.join(args.outdir, "roi_compact_reconstruction.png"),
+    )
+
+    print("  roi_kspace_nonlocality.png")
+    print("  roi_reduced_fov.png")
+    print("  roi_compact_reconstruction.png")
+    return comparison
 
 
 def write_table(runs: list[dict], outdir: str) -> None:

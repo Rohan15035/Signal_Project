@@ -10,7 +10,10 @@ Two kinds of figure:
     one line per sampling strategy.
 
 Plus `plot_mask_gallery`, a convenience figure showing the three mask patterns
-side by side at one ratio.
+side by side at one ratio, `plot_center_vs_edges` and `plot_cs_comparison` for
+the Stage 2 demonstrations, and three reduced-FOV figures for `mri_sim/roi.py`:
+`plot_kspace_nonlocality`, `plot_reduced_fov_panel` and
+`plot_compact_reconstruction`.
 
 Style notes (worth knowing for the report):
   * Images and k-space use a grayscale ramp -- achromatic, monotonic in
@@ -35,6 +38,7 @@ matplotlib.use("Agg")  # non-interactive backend: we only write files to disk
 import matplotlib.pyplot as plt
 import matplotlib.ticker
 from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.patches import Rectangle
 
 from .kspace import MASK_LABELS, sampling_ratio
 
@@ -484,6 +488,273 @@ def plot_metrics_summary(results: list[dict], save_path: str) -> str:
     fig.tight_layout(rect=(0, 0, 1, 0.93))
     _save(fig, save_path)
     return save_path
+
+
+# ---------------------------------------------------------------------------
+# Reduced-FOV (ROI) figures -- see mri_sim/roi.py
+# ---------------------------------------------------------------------------
+
+
+def plot_kspace_nonlocality(image, demo: dict, save_path: str) -> str:
+    """
+    Figure for the misconception: "the lesion is over there, so keep that
+    corner of k-space".
+
+    Four panels: the object | k-space with one quadrant deleted | the
+    reconstruction | the error map, annotated with the mean absolute error in
+    each of the four **image** quadrants.
+
+    The annotation is the whole figure. If k-space were spatially local, one
+    quadrant of the error map would be lit up and the other three would be
+    black. Instead all four numbers are within a factor of two of each other:
+    deleting a quarter of k-space damages the entire image, roughly evenly,
+    because every k-space sample is a measurement of every pixel.
+
+    Parameters
+    ----------
+    image : ground-truth object
+    demo : the dict returned by `roi.kspace_locality_demo`
+    """
+    image = np.asarray(image, dtype=np.float64)
+    error = demo["error"]
+    quadrant_errors = demo["quadrant_errors"]
+    ny, nx = image.shape
+
+    fig, axes = plt.subplots(1, 4, figsize=(16, 4.8), facecolor=SURFACE)
+
+    axes[0].imshow(image, cmap="gray", vmin=0.0, vmax=1.0)
+    axes[0].set_title("Object (ground truth)", color=INK_PRIMARY, fontsize=11)
+
+    axes[1].imshow(log_magnitude(demo["kspace_damaged"]), cmap="gray")
+    axes[1].set_title(
+        f"k-space with the {demo['quadrant']} quadrant deleted\n"
+        f"{demo['kept_fraction'] * 100:.0f}% of samples kept",
+        color=INK_PRIMARY, fontsize=11,
+    )
+
+    axes[2].imshow(demo["reconstruction"], cmap="gray", vmin=0.0, vmax=1.0)
+    axes[2].set_title(
+        f"Reconstruction\nPSNR {demo['metrics']['psnr']:.2f} dB   "
+        f"SSIM {demo['metrics']['ssim']:.4f}",
+        color=INK_PRIMARY, fontsize=11,
+    )
+
+    im = axes[3].imshow(error, cmap=ERROR_CMAP, vmin=0.0)
+    axes[3].set_title(
+        "|error|, mean per image quadrant\nthe damage is spread everywhere",
+        color=INK_PRIMARY, fontsize=11,
+    )
+    # Quarter lines plus the four means, printed where they were measured.
+    axes[3].axhline(ny / 2, color=INK_PRIMARY, linewidth=0.8, alpha=0.5)
+    axes[3].axvline(nx / 2, color=INK_PRIMARY, linewidth=0.8, alpha=0.5)
+    for row in range(2):
+        for col in range(2):
+            axes[3].text(
+                nx * (0.25 + 0.5 * col), ny * (0.25 + 0.5 * row),
+                f"{quadrant_errors[row, col]:.4f}",
+                color=INK_PRIMARY, fontsize=13, fontweight="bold",
+                ha="center", va="center",
+                bbox=dict(facecolor=SURFACE, edgecolor=BASELINE,
+                          boxstyle="round,pad=0.3", alpha=0.85),
+            )
+    cbar = fig.colorbar(im, ax=axes[3], fraction=0.046, pad=0.04)
+    cbar.ax.tick_params(colors=INK_MUTED, labelsize=8)
+    cbar.outline.set_edgecolor(BASELINE)
+
+    for ax in axes:
+        ax.set_xticks([])
+        ax.set_yticks([])
+        for spine in ax.spines.values():
+            spine.set_edgecolor(BASELINE)
+
+    spread = quadrant_errors.max() / max(quadrant_errors.min(), 1e-12)
+    fig.suptitle(
+        "k-space is not spatially local: every sample carries every pixel "
+        f"(worst/best quadrant error = {spread:.2f}x, not infinity)",
+        color=INK_PRIMARY, fontsize=13, y=0.99,
+    )
+    fig.tight_layout(rect=(0, 0, 1, 0.92))
+    _save(fig, save_path)
+    return save_path
+
+
+def plot_reduced_fov_panel(image, comparison: dict, save_path: str) -> str:
+    """
+    Figure for the four ways of spending the same 1/R^2 of k-space.
+
+    One row per variant from `roi.compare_roi_strategies`, five columns:
+
+        what was excited | k-space acquired | reconstruction |
+        the ROI, reconstructed | the ROI, ground truth
+
+    Every row uses the same number of samples and therefore the same scan
+    time. The last two columns are the ones to look at: only the first row
+    reproduces the ground-truth crop, and only the first row excited the box.
+    The bottom row -- identical samples to the top row, RF excitation removed
+    -- is a fold-over catastrophe with a negative PSNR.
+
+    Parameters
+    ----------
+    image : ground-truth object
+    comparison : the dict returned by `roi.compare_roi_strategies`
+    """
+    image = np.asarray(image, dtype=np.float64)
+    box = comparison["box"]
+    variants = comparison["variants"]
+    truth_crop = image[box.slices]
+
+    rows = len(variants)
+    fig, axes = plt.subplots(rows, 5, figsize=(19.5, 4.0 * rows), facecolor=SURFACE)
+
+    for index, variant in enumerate(variants):
+        row = axes[index]
+
+        row[0].imshow(variant["object"], cmap="gray", vmin=0.0, vmax=1.0)
+        row[0].set_title(
+            "Excited object (what makes signal)" if index == 0 else "",
+            color=INK_MUTED, fontsize=10,
+        )
+        # The row label goes on the y-axis of the first panel, so the reader
+        # can scan down the left edge and see the four strategies.
+        row[0].set_ylabel(
+            f"{variant['label']}\n{variant['note']}",
+            color=INK_PRIMARY, fontsize=9.5, rotation=0,
+            ha="right", va="center", labelpad=14,
+        )
+
+        row[1].imshow(log_magnitude(variant["kspace"]), cmap="gray")
+        row[1].set_title(
+            f"k-space acquired: {variant['ratio'] * 100:.2f}% "
+            f"({variant['acceleration']:.1f}x faster)",
+            color=INK_MUTED, fontsize=10,
+        )
+
+        # Every panel in this project uses a fixed [0, 1] display range so that
+        # brightness is comparable. The no-suppression row is the exception: it
+        # sums R^2 aliased copies of the head, so its values run several times
+        # past 1.0 and a [0, 1] range would render it as a blank white square,
+        # hiding the very fold-over that is the point. Those rows get their own
+        # scale, and the title says so.
+        recon = variant["reconstruction"]
+        peak = float(recon.max())
+        overflows = peak > 1.5
+        display_max = peak if overflows else 1.0
+        scale_note = f"\ndisplay range 0-{peak:.1f} (overflows)" if overflows else ""
+
+        row[2].imshow(recon, cmap="gray", vmin=0.0, vmax=display_max)
+        row[2].set_title(
+            f"Reconstruction (full grid){scale_note}",
+            color=INK_MUTED, fontsize=10,
+        )
+
+        crop = recon[box.slices]
+        row[3].imshow(crop, cmap="gray", vmin=0.0, vmax=display_max)
+        row[3].set_title(
+            f"Inside the ROI:  PSNR {variant['psnr']:.2f} dB   "
+            f"SSIM {variant['ssim']:.4f}",
+            color=INK_PRIMARY, fontsize=10.5,
+        )
+
+        row[4].imshow(truth_crop, cmap="gray", vmin=0.0, vmax=1.0)
+        row[4].set_title("The ROI, ground truth", color=INK_MUTED, fontsize=10)
+
+        # Outline the excited box on both full-size panels, so it is obvious
+        # which part of the picture the numbers refer to.
+        for ax in (row[0], row[2]):
+            _draw_box(ax, box)
+
+        for ax in row:
+            ax.set_xticks([])
+            ax.set_yticks([])
+            for spine in ax.spines.values():
+                spine.set_edgecolor(BASELINE)
+
+    fig.suptitle(
+        f"Reduced-FOV imaging at R = {comparison['R']}: same scan time, "
+        f"four ways to spend it (scored inside the ROI only)",
+        color=INK_PRIMARY, fontsize=14, y=0.995,
+    )
+    fig.tight_layout(rect=(0, 0, 1, 0.96))
+    _save(fig, save_path)
+    return save_path
+
+
+def plot_compact_reconstruction(
+    image, comparison: dict, compact_wrapped, compact_centered, save_path: str
+) -> str:
+    """
+    Figure for what a scanner would actually hand back from an inner-volume scan.
+
+    Four panels: the full-grid reconstruction (with the box outlined) | the
+    ground-truth ROI | the compact reconstruction as it comes out of the small
+    inverse FFT | the same after undoing the wrap.
+
+    The point of panels 3 and 4: only `(N/R)^2` samples were measured, so the
+    natural output is an `(N/R, N/R)` image -- same resolution, smaller field
+    of view, 1/R^2 of the data. It comes out circularly shifted, because
+    decimating k-space keeps the *full* FOV's origin as the small FOV's
+    origin; rolling by `(y0 mod N/R, x0 mod N/R)` puts the anatomy back.
+    """
+    image = np.asarray(image, dtype=np.float64)
+    box = comparison["box"]
+    reduced = comparison["variants"][0]      # the reduced-FOV row
+    R = comparison["R"]
+    full_recon = reduced["reconstruction"]
+
+    fig, axes = plt.subplots(1, 4, figsize=(17, 4.8), facecolor=SURFACE)
+
+    axes[0].imshow(full_recon, cmap="gray", vmin=0.0, vmax=1.0)
+    axes[0].set_title(
+        f"Full-grid reconstruction\n{full_recon.shape[0]}x{full_recon.shape[1]}, "
+        f"zero-filled + x{R * R} density compensation",
+        color=INK_PRIMARY, fontsize=11,
+    )
+    _draw_box(axes[0], box)
+
+    axes[1].imshow(image[box.slices], cmap="gray", vmin=0.0, vmax=1.0)
+    axes[1].set_title(
+        f"Ground truth in the ROI\n{box.size}x{box.size}",
+        color=INK_PRIMARY, fontsize=11,
+    )
+
+    axes[2].imshow(compact_wrapped, cmap="gray", vmin=0.0, vmax=1.0)
+    axes[2].set_title(
+        f"Compact reconstruction, raw\n{compact_wrapped.shape[0]}x"
+        f"{compact_wrapped.shape[1]} -- ROI appears wrapped",
+        color=INK_PRIMARY, fontsize=11,
+    )
+
+    axes[3].imshow(compact_centered, cmap="gray", vmin=0.0, vmax=1.0)
+    axes[3].set_title(
+        f"Same data, wrap undone\nrolled by ({box.y0 % box.size}, "
+        f"{box.x0 % box.size}) pixels",
+        color=INK_PRIMARY, fontsize=11,
+    )
+
+    for ax in axes:
+        ax.set_xticks([])
+        ax.set_yticks([])
+        for spine in ax.spines.values():
+            spine.set_edgecolor(BASELINE)
+
+    fig.suptitle(
+        f"What the scanner really returns: {box.size}x{box.size} pixels from "
+        f"{100.0 / (R * R):.2f}% of k-space, at full resolution",
+        color=INK_PRIMARY, fontsize=13, y=0.99,
+    )
+    fig.tight_layout(rect=(0, 0, 1, 0.90))
+    _save(fig, save_path)
+    return save_path
+
+
+def _draw_box(ax, box) -> None:
+    """Outline an `roi.ROIBox` on an image axis (the excited region)."""
+    ax.add_patch(
+        Rectangle(
+            (box.x0 - 0.5, box.y0 - 0.5), box.size, box.size,
+            fill=False, edgecolor="#eb6834", linewidth=1.6, linestyle="--",
+        )
+    )
 
 
 def _all_values(results: list[dict], key: str) -> list[float]:

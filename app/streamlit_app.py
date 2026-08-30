@@ -11,7 +11,7 @@ WHAT THIS IS
 ------------
 A teaching front end for everything in `mri_sim`, driven by the pre-built
 k-space sample store so it starts instantly and never touches the 12 GB raw
-dataset. Five tabs, each answering one question:
+dataset. Each tab answers one question:
 
     1. Acquire      -- what does undersampling do to the image?
     2. Center vs edges -- which frequencies carry what?
@@ -20,6 +20,10 @@ dataset. Five tabs, each answering one question:
     4. Compressed sensing -- can we do better than assuming the missing data
                        was zero?
     5. Sweep        -- how do PSNR and SSIM fall off as we accelerate?
+    6. Reduced FOV  -- can we scan only the region we care about? (and why
+                       "keep the part of k-space where the lesion is" is not
+                       a thing)
+    ... plus an "About this sample" tab with the provenance of the data.
 
 DESIGN NOTES
 ------------
@@ -46,7 +50,7 @@ import streamlit as st
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from kspace_store.store import KSpaceStore          # noqa: E402
-from mri_sim import cs, kspace as ks, metrics, noise  # noqa: E402
+from mri_sim import cs, kspace as ks, metrics, noise, roi  # noqa: E402
 
 STORE_PATH = os.path.join("data", "kspace_store")
 
@@ -146,6 +150,26 @@ def run_cs(
 
 
 @st.cache_data(show_spinner=False)
+def roi_scan(sample_id: str, center: tuple[int, int], R: int, seed: int) -> dict:
+    """
+    Cached reduced-FOV comparison: the four ways of spending 1/R^2 of k-space.
+
+    Note this one deliberately ignores the sidebar's strategy/ratio/SNR: a
+    reduced-FOV scan is a different acquisition, defined entirely by where the
+    box is and how coarse the grid is. Its own controls live in the tab.
+    """
+    image, _, _, _ = load_sample(sample_id)
+    return roi.compare_roi_strategies(image, center, R, seed=seed)
+
+
+@st.cache_data(show_spinner=False)
+def locality_demo(sample_id: str, quadrant: str) -> dict:
+    """Cached "k-space is not spatially local" experiment (see roi.py)."""
+    image, _, _, _ = load_sample(sample_id)
+    return roi.kspace_locality_demo(image, quadrant=quadrant)
+
+
+@st.cache_data(show_spinner=False)
 def sweep(sample_id: str, snr_db: float | None, seed: int) -> pd.DataFrame:
     """PSNR/SSIM for every strategy at every ratio -- the summary chart."""
     rows = []
@@ -204,6 +228,27 @@ def show_error(original: np.ndarray, reconstruction: np.ndarray, caption: str) -
     """Absolute difference map, auto-scaled (the caption reports the true peak)."""
     error = np.abs(original - reconstruction)
     show_image(error, f"{caption} (peak {error.max():.3f})", stretch=True)
+
+
+def show_with_box(array: np.ndarray, box, caption: str) -> None:
+    """
+    Render an image with the excited ROI box outlined in orange.
+
+    Drawn by hand into an RGB copy rather than with matplotlib, because these
+    panels are `st.image` calls, not figures.
+    """
+    data = np.clip(np.asarray(array, dtype=np.float64), 0.0, 1.0)
+    overlay = np.stack([data] * 3, axis=-1)
+
+    outline = [1.0, 0.41, 0.20]
+    y1, x1 = box.y0 + box.size - 1, box.x0 + box.size - 1
+    overlay[box.y0, box.x0:x1 + 1] = outline      # top edge
+    overlay[y1, box.x0:x1 + 1] = outline          # bottom edge
+    overlay[box.y0:y1 + 1, box.x0] = outline      # left edge
+    overlay[box.y0:y1 + 1, x1] = outline          # right edge
+
+    st.image(overlay, caption=caption, use_container_width=True,
+             clamp=True, output_format="PNG")
 
 
 def metric_row(scores: dict, baseline: dict | None = None) -> None:
@@ -318,6 +363,7 @@ tabs = st.tabs([
     "3 · Noise",
     "4 · Compressed sensing",
     "5 · Sweep",
+    "6 · Reduced FOV (ROI)",
     "ℹ️ About this sample",
 ])
 
@@ -606,10 +652,237 @@ with tabs[4]:
     )
 
 # ---------------------------------------------------------------------------
-# Tab 6: provenance
+# Tab 6: reduced field of view -- scanning only the part that matters
 # ---------------------------------------------------------------------------
 
 with tabs[5]:
+    st.subheader("Can we scan only the bit we care about?")
+    st.markdown(
+        "Yes — but **not** by keeping the part of k-space \"where the lesion "
+        "is\". There is no such part: every k-space sample is a measurement of "
+        "every pixel. The way to do it is to stop the rest of the anatomy "
+        "producing signal at all, with a spatially selective **RF excitation**, "
+        "and then take advantage of the smaller field of view that leaves."
+    )
+
+    with st.expander("The two Fourier relationships this rests on", expanded=False):
+        st.markdown(
+            "| Quantity | Controls | Relationship |\n"
+            "|---|---|---|\n"
+            "| `dk` — spacing between samples | field of view | `FOV = 1 / dk` |\n"
+            "| `k_max` — how far out you go | resolution | `dx = 1 / (2·k_max)` |\n\n"
+            "Tab 2's centre-only mask turns the **second** knob: it shrinks "
+            "`k_max`, so it costs resolution. Reduced-FOV imaging turns the "
+            "**first**: with only a small box excited, the samples can be "
+            "spaced `R` times further apart without the object folding onto "
+            "itself, and `k_max` — so resolution — is untouched. Sampling "
+            "every `R`-th point in both directions measures `1/R²` of "
+            "k-space: at R = 4 that is 6.25%, a **16× faster scan**, at full "
+            "resolution inside the box."
+        )
+
+    # --- Controls: where the box goes and how coarse the grid is ------------
+    factors = roi.reduction_factors(image.shape)
+    control_left, control_mid, control_right = st.columns([1, 1, 1])
+
+    with control_left:
+        R = st.select_slider(
+            "Reduction factor R",
+            options=factors,
+            value=roi.DEFAULT_REDUCTION if roi.DEFAULT_REDUCTION in factors else factors[0],
+            help="R must divide the image size exactly, otherwise the aliasing "
+                 "period N/R is not a whole number of pixels and the "
+                 "reconstruction silently degrades. Only legal values are offered.",
+        )
+        st.caption(
+            f"→ **{R * R}× faster** · {100.0 / (R * R):.2f}% of k-space · "
+            f"box {image.shape[0] // R}×{image.shape[1] // R} px"
+        )
+
+    # Default the box to the expert tumour segmentation when the sample has
+    # one -- that is the realistic case: a radiologist points at the lesion.
+    if tumor_mask is not None and tumor_mask.any():
+        default_center = roi.roi_center_from_mask(tumor_mask)
+        center_note = "defaults to the centroid of the expert tumour mask"
+    else:
+        default_center = (image.shape[0] // 2, image.shape[1] // 2)
+        center_note = "this sample has no segmentation, so the default is the image centre"
+
+    with control_mid:
+        center_y = st.slider("ROI centre — row (y)", 0, image.shape[0] - 1,
+                             int(default_center[0]))
+    with control_right:
+        center_x = st.slider("ROI centre — column (x)", 0, image.shape[1] - 1,
+                             int(default_center[1]))
+    st.caption(f"ROI centre ({center_y}, {center_x}) — {center_note}. "
+               "The box is clamped to stay inside the image.")
+
+    comparison = roi_scan(sample_id, (int(center_y), int(center_x)), int(R), int(seed))
+    box = comparison["box"]
+    reduced = comparison["variants"][0]
+
+    # --- The scan itself ----------------------------------------------------
+    st.markdown("**The inner-volume scan, step by step**")
+    columns = st.columns(5)
+    with columns[0]:
+        show_with_box(image, box, "1. Target, with the box to excite")
+    with columns[1]:
+        show_image(reduced["object"], "2. After the RF pulse: only the box has signal")
+    with columns[2]:
+        show_image(reduced["mask"], f"3. Every {R}th sample, full k_max")
+    with columns[3]:
+        show_kspace(reduced["kspace"], "4. What the scanner measured")
+    with columns[4]:
+        show_image(reduced["reconstruction"],
+                   f"5. Reconstruction (×{R * R} density compensation)")
+
+    st.caption(
+        "Panel 5 tiles: outside the box the reconstruction is just periodic "
+        f"replicas of the ROI, {image.shape[0] // R} pixels apart. That is "
+        "harmless — nothing out there was excited, so there is no signal to "
+        "get wrong. Score the box, not the picture."
+    )
+
+    left, right = st.columns([2, 3])
+    with left:
+        st.markdown("**Inside the ROI**")
+        metric_row({"psnr": reduced["psnr"], "ssim": reduced["ssim"]})
+        st.caption(
+            "Scored with `metrics.compute_metrics_in_roi`. A PSNR in the "
+            "hundreds means the only error left is floating-point round-off: "
+            "inside the box this is not an approximation, it is a complete, "
+            "critically-sampled measurement."
+        )
+    with right:
+        crop_left, crop_right = st.columns(2)
+        with crop_left:
+            show_image(reduced["reconstruction"][box.slices], "ROI, reconstructed")
+        with crop_right:
+            show_image(image[box.slices], "ROI, ground truth")
+
+    # --- The same samples spent four different ways -------------------------
+    st.divider()
+    st.markdown("**Same scan time, four ways to spend it**")
+    st.markdown(
+        "Every row below measures the same fraction of k-space. Only the first "
+        "one excites the box; the last one uses *identical* samples to the "
+        "first with the RF excitation removed."
+    )
+
+    table = pd.DataFrame([
+        {
+            "strategy": variant["label"],
+            "k-space %": variant["ratio"] * 100.0,
+            "acceleration": variant["acceleration"],
+            "PSNR in ROI (dB)": variant["psnr"],
+            "SSIM in ROI": variant["ssim"],
+        }
+        for variant in comparison["variants"]
+    ])
+    st.dataframe(
+        table.style.format({
+            "k-space %": "{:.2f}",
+            "acceleration": "{:.1f}×",
+            "PSNR in ROI (dB)": "{:.2f}",
+            "SSIM in ROI": "{:.4f}",
+        }),
+        use_container_width=True,
+        hide_index=True,
+    )
+
+    crops = st.columns(len(comparison["variants"]))
+    for column, variant in zip(crops, comparison["variants"]):
+        with column:
+            # The no-suppression row sums R^2 folded copies, so its values run
+            # past 1.0; stretch it or it renders as a white square.
+            stretch = float(variant["reconstruction"].max()) > 1.5
+            show_image(
+                variant["reconstruction"][box.slices],
+                f"{variant['key']} — {variant['psnr']:.1f} dB"
+                + (" (display stretched)" if stretch else ""),
+                stretch=stretch,
+            )
+
+    st.error(
+        "**The last column is the point.** Drop the RF excitation and the "
+        "whole head is still producing signal, so an R-fold coarse grid folds "
+        f"{R * R} pieces of anatomy directly on top of the ROI. PSNR goes "
+        "*negative* — the error is larger than the signal. The excitation is "
+        "not an optimisation on top of the method; it **is** the method."
+    )
+
+    # --- What the scanner would really hand back ---------------------------
+    with st.expander("What the scanner actually returns (compact reconstruction)"):
+        _, kspace_roi, _ = roi.reduced_fov_acquire(
+            image, (int(center_y), int(center_x)), int(R)
+        )
+        wrapped = roi.compact_reconstruct(kspace_roi, int(R))
+        centered = roi.compact_reconstruct(kspace_roi, int(R), box)
+        compact_scores = metrics.compute_metrics(image[box.slices], centered)
+
+        st.markdown(
+            f"Only `(N/R)² = {box.size}×{box.size}` samples were measured, so "
+            f"the natural output is a {box.size}×{box.size} image — same "
+            "resolution, smaller field of view — rather than a zero-filled "
+            "full-size one. It comes out **circularly shifted**, because "
+            "decimating k-space keeps the full FOV's origin as the small FOV's "
+            f"origin; rolling by ({box.y0 % box.size}, {box.x0 % box.size}) "
+            "pixels puts the anatomy back (the shift theorem, applied after "
+            "the transform instead of as a phase ramp before it)."
+        )
+        small_columns = st.columns(3)
+        with small_columns[0]:
+            show_image(wrapped, f"Raw {box.size}×{box.size} output — wrapped")
+        with small_columns[1]:
+            show_image(centered, "Wrap undone")
+        with small_columns[2]:
+            show_image(image[box.slices], "Ground truth")
+        metric_row(compact_scores)
+
+    # --- The misconception, measured ---------------------------------------
+    st.divider()
+    st.markdown("**Why \"just keep that corner of k-space\" cannot work**")
+
+    locality = locality_demo(sample_id, "top-left")
+    errors = locality["quadrant_errors"]
+
+    locality_columns = st.columns(4)
+    with locality_columns[0]:
+        show_kspace(locality["kspace_damaged"], "k-space, top-left quadrant deleted")
+    with locality_columns[1]:
+        show_image(locality["reconstruction"], "Reconstruction")
+    with locality_columns[2]:
+        show_error(image, locality["reconstruction"], "Where the error landed")
+    with locality_columns[3]:
+        st.markdown("Mean `|error|` per **image** quadrant:")
+        st.dataframe(
+            pd.DataFrame(
+                errors,
+                index=["top", "bottom"],
+                columns=["left", "right"],
+            ).style.format("{:.4f}"),
+            use_container_width=True,
+        )
+        st.caption(
+            f"Worst / best = {errors.max() / errors.min():.2f}×, not infinity."
+        )
+
+    st.info(
+        "One quarter of k-space was deleted, and the damage appears across the "
+        "**whole** image rather than in one quadrant. Every k-space sample is "
+        "an inner product of the entire object with one global sinusoid, so "
+        "every sample carries every pixel. Position in the image lives in the "
+        "*phase* relationships between samples, not in where the samples sit "
+        "in k-space — which is why knowing where the lesion is tells you "
+        "nothing about which samples to keep, and why the answer had to come "
+        "from the excitation instead."
+    )
+
+# ---------------------------------------------------------------------------
+# Tab 7: provenance
+# ---------------------------------------------------------------------------
+
+with tabs[6]:
     st.subheader(meta["title"])
 
     left, right = st.columns([1, 2])
