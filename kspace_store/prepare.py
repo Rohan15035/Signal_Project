@@ -123,8 +123,8 @@ def normalize_intensity(
     MRI slices have hot pixels from fat or flow; one outlier would compress all
     the soft tissue into the bottom few percent and the image would look black.
 
-    The [0, 1] range is load-bearing, not cosmetic: mri_sim.metrics assumes
-    data_range = 1.0, so this is what makes PSNR comparable across samples.
+    The [0, 1] range matters: PSNR is only comparable across samples when
+    every image uses the same intensity scale.
     """
     image = image.astype(np.float64)
 

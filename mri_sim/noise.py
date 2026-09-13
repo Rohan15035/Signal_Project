@@ -91,7 +91,7 @@ def simulate_acquisition(
 
 
 def measured_snr_db(clean_kspace: np.ndarray, noisy_kspace: np.ndarray) -> float:
-    """Read SNR back off a pair of k-spaces -- a self-check to run for an examiner."""
+    """Read SNR back off a pair of k-spaces, to check the noise level is right."""
     noise = noisy_kspace - clean_kspace
     signal_power = float(np.mean(np.abs(clean_kspace) ** 2))
     noise_power = float(np.mean(np.abs(noise) ** 2))

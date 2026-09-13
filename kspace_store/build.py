@@ -155,7 +155,7 @@ def _hermitian_asymmetry(kspace: np.ndarray) -> float:
 
     A real image gives K(-k) = conj(K(k)) and would score ~0, making half the
     data redundant. The synthetic phase breaks that, as real scanner data does;
-    reporting the number keeps us honest about what is being simulated.
+    the number is reported so the effect of the phase map can be checked.
     """
     # Mirror on the un-shifted array, where index -k is just (N - k) mod N.
     uncentered = np.fft.ifftshift(kspace)
@@ -325,7 +325,7 @@ def write_store_readme(out_dir: str, manifest: dict) -> None:
         lines.append("")
 
     lines += [
-        "## Provenance and honesty notes",
+        "## Provenance and limitations",
         "",
         "- These are **simulated** k-space data. A real scanner measures k-space",
         "  directly; we start from reconstructed images and run a forward FFT.",

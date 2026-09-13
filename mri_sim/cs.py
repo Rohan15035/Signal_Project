@@ -1,7 +1,7 @@
 """Stage 2: compressed sensing by iterative soft thresholding.
 
 Zero-filling assumes every unmeasured k-space point is zero. It is not zero,
-we just did not look, and that lie is what makes the Stage 1 artifacts.
+we just did not look, and that wrong guess is what causes the Stage 1 artifacts.
 Compressed sensing instead asks: of all images consistent with what we
 measured, which is the simplest?
 
@@ -64,7 +64,7 @@ def _threshold_details(
 ) -> np.ndarray:
     """Soft-threshold the detail bands only, leaving the approximation band alone.
 
-    Correctness issue, not a refinement. The detail bands are near-zero over
+    Required for correctness. The detail bands are near-zero over
     smooth tissue, so sparsity applies to them. The approximation band is a
     dense, high-energy summary of the anatomy with the largest coefficients in
     the transform; shrinking it every iteration drains energy, contrast drops,
@@ -204,7 +204,7 @@ def compare_with_zero_fill(
     reference: np.ndarray,
     **kwargs,
 ) -> dict:
-    """The Stage 2 headline: same mask, same samples, two answers to "what was
+    """Zero-fill vs CS on the same mask and samples: two answers to "what was
     not measured?" -- zero-fill says zero, CS says whatever is sparsest while
     still matching the measurements.
     """

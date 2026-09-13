@@ -98,7 +98,7 @@ def run_cs(
     snr_db: float | None,
     seed: int,
 ) -> dict:
-    """Cached compressed-sensing run (the only genuinely slow operation, ~1 s)."""
+    """Cached compressed-sensing run (the slowest operation, about 1 s)."""
     image, full_kspace, _, _ = load_sample(sample_id)
     mask = build_mask("variable_density", image.shape, ratio, seed)
 
@@ -187,11 +187,10 @@ def metric_row(scores: dict, baseline: dict | None = None) -> None:
 
 st.set_page_config(
     page_title="MRI k-Space Simulator",
-    page_icon="🧲",
     layout="wide",
 )
 
-st.title("🧲 MRI k-Space Reconstruction Simulator")
+st.title("MRI k-Space Reconstruction Simulator")
 st.caption(
     "How an MRI scanner acquires data in the Fourier domain, and what happens "
     "to the image when you speed the scan up by measuring less of it."
@@ -240,7 +239,7 @@ with st.sidebar:
         format="%.2f",
         help="Fraction of k-space the scanner acquires. 0.25 means a 4x faster scan.",
     )
-    st.caption(f"→ **{1 / ratio:.1f}× acceleration** (scan takes {ratio * 100:.0f}% of the time)")
+    st.caption(f"**{1 / ratio:.1f}x acceleration** (scan takes {ratio * 100:.0f}% of the time)")
 
     st.divider()
 
@@ -263,7 +262,7 @@ with st.sidebar:
     st.divider()
     st.caption(
         f"Store: {len(store)} samples at "
-        f"{store.manifest['resolution']}×{store.manifest['resolution']}"
+        f"{store.manifest['resolution']}x{store.manifest['resolution']}"
     )
 
 # Load the chosen subject
@@ -275,12 +274,12 @@ acquired, reconstruction, scores = acquire(
 )
 
 tabs = st.tabs([
-    "1 · Acquire",
-    "2 · Centre vs edges",
-    "3 · Noise",
-    "4 · Compressed sensing",
-    "5 · Sweep",
-    "ℹ️ About this sample",
+    "1. Acquire",
+    "2. Centre vs edges",
+    "3. Noise",
+    "4. Compressed sensing",
+    "5. Sweep",
+    "6. About this sample",
 ])
 
 # Tab 1: the main pipeline
@@ -299,7 +298,7 @@ with tabs[0]:
     with columns[1]:
         show_kspace(full_kspace, "2. Full k-space, log|K|")
     with columns[2]:
-        show_image(mask, f"3. Mask — {ks.sampling_ratio(mask) * 100:.1f}% acquired")
+        show_image(mask, f"3. Mask, {ks.sampling_ratio(mask) * 100:.1f}% acquired")
     with columns[3]:
         show_kspace(acquired, "4. What the scanner got")
     with columns[4]:
@@ -310,8 +309,8 @@ with tabs[0]:
         st.markdown("**Reconstruction quality**")
         metric_row(scores)
         st.caption(
-            f"Acquired {ks.sampling_ratio(mask) * 100:.1f}% of k-space → "
-            f"{ks.acceleration_factor(mask):.1f}× faster scan."
+            f"Acquired {ks.sampling_ratio(mask) * 100:.1f}% of k-space, so the scan is "
+            f"{ks.acceleration_factor(mask):.1f}x faster."
         )
     with right:
         show_error(image, reconstruction, "Absolute error")
@@ -319,18 +318,18 @@ with tabs[0]:
     st.info(
         {
             "cartesian": "**Cartesian**: skipping whole lines folds the image onto "
-                         "itself — the ghosts are crisp copies of the anatomy, "
+                         "itself. The ghosts are sharp copies of the anatomy, "
                          "shifted by FOV/acceleration. Coherent artifacts like these "
                          "are the hardest kind to remove, because they look like real "
                          "structure.",
             "radial": "**Radial**: spokes oversample the centre and leave gaps that "
                       "widen outward, so the error appears as streaks radiating from "
-                      "bright edges. Radial is also famously robust to motion, since "
+                      "bright edges. Radial is also used for motion-tolerant scans, since "
                       "every spoke re-measures the centre.",
             "variable_density": "**Random variable-density**: the error is spread out "
                                 "as incoherent, noise-like grain instead of structured "
-                                "ghosts. That is exactly the property compressed "
-                                "sensing needs — see tab 4.",
+                                "ghosts. Compressed sensing depends on this "
+                                "property (see tab 4).",
         }[strategy]
     )
 
@@ -356,7 +355,7 @@ with tabs[1]:
     left, right = st.columns(2)
 
     with left:
-        st.markdown("#### Centre only — a low-pass filter")
+        st.markdown("#### Centre only (low-pass filter)")
         inner = st.columns(3)
         with inner[0]:
             show_image(center_mask, "Mask")
@@ -367,13 +366,13 @@ with tabs[1]:
         metric_row(metrics.compute_metrics(image, center_recon))
         st.success(
             f"Mean brightness **{center_recon.mean():.3f}** vs {image.mean():.3f} "
-            "for the original — contrast and shape are intact, only fine detail is "
+            "for the original. Contrast and shape are intact; only fine detail is "
             "lost. The faint rings around sharp edges are **Gibbs ringing**, from "
             "truncating the Fourier series at the rim of the disc."
         )
 
     with right:
-        st.markdown("#### Edges only — a high-pass filter")
+        st.markdown("#### Edges only (high-pass filter)")
         inner = st.columns(3)
         with inner[0]:
             show_image(edges_mask, "Mask")
@@ -383,7 +382,7 @@ with tabs[1]:
             show_image(edges_recon, "Contrast stretched", stretch=True)
         metric_row(metrics.compute_metrics(image, edges_recon))
         st.error(
-            f"Mean brightness **{edges_recon.mean():.4f}** — essentially black. "
+            f"Mean brightness **{edges_recon.mean():.4f}**, which is nearly black. "
             "Throwing away the centre throws away the DC term, i.e. the average "
             "brightness of the whole image, along with every slowly-varying "
             "structure. Stretched, it is an edge map."
@@ -392,7 +391,7 @@ with tabs[1]:
     energy = meta["stats"]["energy_within_r0.1"]
     st.info(
         f"For this sample, **{energy * 100:.1f}%** of all k-space energy sits inside "
-        "the central 10% radius — about 1% of the samples. That is why every "
+        "the central 10% radius, which is about 1% of the samples. That is why every "
         "realistic mask in tab 1 protects the centre."
     )
 
@@ -402,8 +401,8 @@ with tabs[2]:
     st.subheader("Scanner noise lives in k-space")
     st.markdown(
         "Real noise is added to the **measured samples**, not to the finished "
-        "image. It is complex (the receiver has an I and a Q channel) and white "
-        "— the same power at every frequency. Since the outer samples are tiny "
+        "image. It is complex (the receiver has an I and a Q channel) and white, "
+        "with the same power at every frequency. Since the outer samples are tiny "
         "and the centre is huge, the same noise destroys fine detail long before "
         "it touches overall contrast."
     )
@@ -442,10 +441,10 @@ with tabs[2]:
     with st.expander("Why does undersampling let in *less* total noise?"):
         st.markdown(
             "Noise enters once per measurement, so a mask that keeps 25% of "
-            "k-space also admits about 25% of the noise energy — the familiar "
-            "`SNR ∝ √N` of MRI. That does **not** make fast scans cleaner: you "
-            "lose signal and gain artifacts at the same time. The honest "
-            "statement is that a faster scan is noisier *per unit of signal*.\n\n"
+            "k-space also admits about 25% of the noise energy, in line with the "
+            "MRI rule that SNR grows as `sqrt(N)`. That does **not** make fast scans cleaner: you "
+            "lose signal and gain artifacts at the same time. More precisely, "
+            "a faster scan is noisier *per unit of signal*.\n\n"
             "Notice also that the magnitude operation turns zero-mean complex "
             "noise into strictly positive **Rician** noise, which is why the "
             "background of a noisy MRI image is a faint grey haze rather than "
@@ -460,8 +459,8 @@ with tabs[3]:
         "Zero-filling assumes every unmeasured point was zero. Compressed "
         "sensing instead asks: *of all the images consistent with what we "
         "measured, which one is the sparsest in a wavelet basis?* It needs the "
-        "**random variable-density** mask, because its artifacts are incoherent "
-        "— Cartesian ghosts are just as sparse as real anatomy, so no sparsity "
+        "**random variable-density** mask, because its artifacts are incoherent. "
+        "Cartesian ghosts are just as sparse as real anatomy, so no sparsity "
         "prior can tell them apart."
     )
 
@@ -471,7 +470,7 @@ with tabs[3]:
         format="%.3f", key="cs_ratio",
     )
     cs_lambda = controls[1].slider(
-        "λ — sparsity strength", min_value=0.002, max_value=0.10, value=0.01,
+        "Lambda (sparsity strength)", min_value=0.002, max_value=0.10, value=0.01,
         step=0.002, format="%.3f",
         help="Larger = sparser = smoother. Too large and real anatomy is "
              "thresholded away.",
@@ -485,8 +484,8 @@ with tabs[3]:
 
     columns = st.columns(3)
     with columns[0]:
-        show_image(result["mask"], f"Mask — {ks.sampling_ratio(result['mask']) * 100:.1f}%")
-        st.caption(f"{1 / ks.sampling_ratio(result['mask']):.1f}× acceleration")
+        show_image(result["mask"], f"Mask, {ks.sampling_ratio(result['mask']) * 100:.1f}%")
+        st.caption(f"{1 / ks.sampling_ratio(result['mask']):.1f}x acceleration")
     with columns[1]:
         show_image(result["zero_fill_image"], "Zero-filled (linear, instant)")
         metric_row(result["zero_fill_metrics"])
@@ -521,7 +520,7 @@ with tabs[3]:
 with tabs[4]:
     st.subheader("Quality versus acceleration")
     st.markdown(
-        "Every strategy, every ratio, scored against the ground truth — the "
+        "Every strategy at every ratio, scored against the ground truth. This is the "
         "quantitative version of tab 1."
     )
 
@@ -543,7 +542,7 @@ with tabs[4]:
     st.dataframe(
         table.style.format({
             "sampling %": "{:.1f}",
-            "acceleration": "{:.1f}×",
+            "acceleration": "{:.1f}x",
             "PSNR (dB)": "{:.2f}",
             "SSIM": "{:.4f}",
         }),
@@ -579,7 +578,7 @@ with tabs[5]:
         st.markdown(
             f"- Collection: `{meta['collection']}`\n"
             f"- Source file: `{meta['source_file']}`\n"
-            f"- Stored shape: {meta['shape'][0]}×{meta['shape'][1]}\n"
+            f"- Stored shape: {meta['shape'][0]}x{meta['shape'][1]}\n"
             f"- Tags: {', '.join(meta['tags'])}"
         )
         st.caption(meta["collection_note"])
@@ -594,9 +593,9 @@ with tabs[5]:
             f"- Energy inside the central 10% radius: **{stats['energy_within_r0.1'] * 100:.1f}%**\n"
             f"- Energy inside the central 25% radius: **{stats['energy_within_r0.25'] * 100:.1f}%**\n"
             f"- k-space dynamic range: **{stats['kspace_dynamic_range_db']:.0f} dB** "
-            "(peak / median magnitude — why k-space is always shown on a log scale)\n"
+            "(peak / median magnitude, which is why k-space is shown on a log scale)\n"
             f"- Hermitian asymmetry: **{stats['hermitian_asymmetry']:.2f}** "
-            "(≈0 would mean a real-valued image, where half of k-space is redundant)"
+            "(near 0 would mean a real-valued image, where half of k-space is redundant)"
         )
 
     with st.expander("How this k-space was made, and what is simulated"):
@@ -605,12 +604,12 @@ with tabs[5]:
             "FFT** to manufacture k-space. A real scanner measures k-space "
             "directly; everything downstream of that point behaves identically.\n\n"
             "The source files are *magnitude* images, so the original scanner "
-            "phase no longer exists. A smooth synthetic phase map (a B₀-like "
+            "phase no longer exists. A smooth synthetic phase map (a B0-like "
             "quadratic bowl, a gradient ramp, and coil-like ripples) is applied "
             "before the FFT. Without it the k-space would be perfectly "
             "Hermitian-symmetric, half the data would be a free copy of the "
             "other half, and any partial-Fourier demonstration would be "
             "unrealistically perfect.\n\n"
-            f"Stored as: `kspace = fftshift(fft2(image · exp(i·phase)))`, "
-            f"complex64, {meta['shape'][0]}×{meta['shape'][1]}."
+            f"Stored as: `kspace = fftshift(fft2(image * exp(1j * phase)))`, "
+            f"complex64, {meta['shape'][0]}x{meta['shape'][1]}."
         )

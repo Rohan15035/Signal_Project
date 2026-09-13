@@ -1,4 +1,4 @@
-"""Task A: corrupting k-space with patient motion during a scan.
+"""Patient motion: corrupting k-space during a scan.
 
 The whole module rests on the Fourier shift theorem:
 
@@ -63,7 +63,7 @@ def verify_shift_theorem(
 ) -> float:
     """A uniform displacement must reconstruct to exactly np.roll(image, (dy, dx)).
 
-    The load-bearing check for this module: if it does not hold to a couple of
+    The main correctness check for this module: if it does not hold to a couple of
     machine epsilons, the ramp formula has a sign or axis error and nothing
     built on apply_motion means anything. Returns the max absolute pixel
     error, expected around 1e-15.
@@ -231,7 +231,7 @@ def apply_motion_radial(
 
 
 if __name__ == "__main__":
-    # Cheap load-bearing check, run whenever this module is executed directly.
+    # Quick correctness check, run whenever this module is executed directly.
     err = verify_shift_theorem()
     print(f"uniform-shift check max error: {err:.3e}")
     assert err < 1e-9, "apply_motion does not match np.roll for a uniform shift"
