@@ -43,12 +43,16 @@ import streamlit as st
 
 # Allow `streamlit run app/streamlit_app.py` from the project root: the app
 # lives one directory down, so the project root has to be importable.
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, PROJECT_ROOT)
 
 from kspace_store.store import KSpaceStore          # noqa: E402
-from mri_sim import cs, kspace as ks, metrics, noise  # noqa: E402
+from mri_sim import cs, kspace as ks, metrics, motion, noise  # noqa: E402
 
-STORE_PATH = os.path.join("data", "kspace_store")
+# Anchored to the project root, not the working directory: `streamlit run`
+# can be invoked from anywhere, and a relative path would make the app
+# claim the store is missing when it is merely elsewhere.
+STORE_PATH = os.path.join(PROJECT_ROOT, "data", "kspace_store")
 
 # Ratios used by the sweep tab. 1.0 is included as the "no undersampling"
 # reference point.
@@ -118,6 +122,92 @@ def acquire(
 
     reconstruction = ks.from_kspace(acquired)
     return acquired, reconstruction, metrics.compute_metrics(image, reconstruction)
+
+
+@st.cache_data(show_spinner=False)
+def acquire_with_motion(
+    sample_id: str,
+    kind: str,
+    ratio: float,
+    model: str,
+    amp: float,
+    at_frac: float,
+    cycles: float,
+    snr_db: float | None,
+    seed: int,
+):
+    """
+    Like `acquire`, but with patient motion timed correctly for `kind`.
+
+    The branch below is the whole point of this function. A Cartesian scan
+    fills k-space one ROW per repetition, so row index is acquisition time
+    and `apply_motion` is right. A radial scan fills one SPOKE per
+    repetition, and every spoke crosses the k-space centre -- timing it by
+    row would stamp a single row's phase error onto that centre and throw
+    away radial's motion robustness, which is exactly the effect this tab
+    exists to show. So radial goes through `draw_spokes_indexed` /
+    `apply_motion_radial` instead, with the mask rebuilt from the same
+    `n_spokes` so mask and index map agree point for point.
+
+    Motion is applied BEFORE masking, so noise (added by
+    `simulate_acquisition`) still lands only on the samples the scanner
+    actually measured.
+
+    Returns (mask, acquired k-space, reconstruction, metrics, displacements).
+    """
+    image, full_kspace, _, _ = load_sample(sample_id)
+    ny, _ = image.shape
+
+    if kind == "radial":
+        n_spokes = motion.n_spokes_for_ratio(image.shape, ratio)
+        index_map = motion.draw_spokes_indexed(image.shape, n_spokes)
+        mask = ks.radial_mask(image.shape, n_spokes=n_spokes)
+        # index_map.max(), not n_spokes: a spoke can lose every one of its
+        # pixels to the angle tie-break, and apply_motion_radial validates
+        # the displacement count against what is actually in the map.
+        displacements = build_displacements(
+            model, int(index_map.max()), amp, at_frac, cycles
+        )
+        corrupted = motion.apply_motion_radial(full_kspace, index_map, displacements)
+    else:
+        mask = build_mask(kind, image.shape, ratio, seed)
+        displacements = build_displacements(model, ny, amp, at_frac, cycles)
+        corrupted = motion.apply_motion(full_kspace, displacements)
+
+    if snr_db is None:
+        acquired = ks.apply_mask(corrupted, mask)
+    else:
+        acquired = noise.simulate_acquisition(corrupted, mask, snr_db=snr_db, seed=seed)
+
+    reconstruction = ks.from_kspace(acquired)
+    return (
+        mask,
+        acquired,
+        reconstruction,
+        metrics.compute_metrics(image, reconstruction),
+        displacements,
+    )
+
+
+def build_displacements(
+    model: str, n: int, amp: float, at_frac: float, cycles: float
+) -> list[tuple[float, float]]:
+    """
+    One (dy, dx) displacement per acquisition event, ready for `apply_motion`.
+
+    `n` is the number of events, which is NOT the same thing for every
+    trajectory: a Cartesian scan acquires one row per repetition, so n = ny,
+    while a radial scan acquires one whole spoke per repetition, so
+    n = n_spokes. Keeping that count a parameter is what lets the same three
+    motion models drive both pipelines.
+    """
+    if model == "none" or amp == 0.0:
+        return [(0.0, 0.0)] * n
+    if model == "sudden_jerk":
+        return motion.sudden_jerk(n, amp, int(round(at_frac * n)))
+    if model == "slow_drift":
+        return motion.slow_drift(n, amp)
+    return motion.periodic(n, amp, cycles)
 
 
 @st.cache_data(show_spinner=False)
@@ -318,6 +408,7 @@ tabs = st.tabs([
     "3 · Noise",
     "4 · Compressed sensing",
     "5 · Sweep",
+    "6 · Motion",
     "ℹ️ About this sample",
 ])
 
@@ -606,10 +697,142 @@ with tabs[4]:
     )
 
 # ---------------------------------------------------------------------------
-# Tab 6: provenance
+# Tab 6: motion
 # ---------------------------------------------------------------------------
 
 with tabs[5]:
+    st.subheader("Patient motion during the scan")
+    st.markdown(
+        "Moving the patient does **not** change the magnitude of k-space — it "
+        "stamps a linear **phase ramp** on it. A *uniform* shift is therefore "
+        "harmless: the image simply moves. The artifact comes from the patient "
+        "being in a **different place for different parts of the scan**, so the "
+        "measured k-space is not the transform of any one consistent object."
+    )
+
+    controls = st.columns(4)
+    motion_model = controls[0].selectbox(
+        "Motion model",
+        ["none", "sudden_jerk", "slow_drift", "periodic"],
+        index=1,
+        format_func={
+            "none": "None",
+            "sudden_jerk": "Sudden jerk → ghost",
+            "slow_drift": "Slow drift → blur",
+            "periodic": "Periodic (breathing) → ghost train",
+        }.get,
+    )
+    motion_amp = controls[1].slider(
+        "Amplitude (pixels)", min_value=0.0, max_value=25.0, value=8.0, step=0.5,
+        help="How far the patient moves, in image pixels.",
+    )
+    jerk_at = controls[2].slider(
+        "Jerk at (fraction of scan)", min_value=0.0, max_value=1.0, value=0.5,
+        step=0.05, disabled=motion_model != "sudden_jerk",
+    )
+    motion_cycles = controls[3].slider(
+        "Cycles over the scan", min_value=0.5, max_value=20.0, value=6.0, step=0.5,
+        disabled=motion_model != "periodic",
+        help="How many breathing cycles fit in one scan — this sets the ghost spacing.",
+    )
+
+    mask_m, acquired_m, recon_m, scores_m, displacements = acquire_with_motion(
+        sample_id, strategy, ratio, motion_model, motion_amp, jerk_at,
+        motion_cycles, snr_db, int(seed),
+    )
+
+    columns = st.columns(4)
+    with columns[0]:
+        show_image(image, "Ground truth")
+    with columns[1]:
+        show_image(reconstruction, "No motion")
+        metric_row(scores)
+    with columns[2]:
+        show_image(recon_m, "With motion")
+        metric_row(scores_m, baseline=scores)
+    with columns[3]:
+        show_error(image, recon_m, "Motion error")
+
+    st.markdown("**Where the patient was, over the course of the scan**")
+    st.line_chart(
+        pd.DataFrame({"dy (pixels)": [dy for dy, _ in displacements]}),
+        y="dy (pixels)",
+    )
+    st.caption(
+        "x axis is "
+        + ("spoke index" if strategy == "radial" else "k-space row")
+        + " — i.e. acquisition time, earliest on the left."
+    )
+
+    st.info(
+        {
+            "none": "**No motion** — this is the same reconstruction as tab 1. "
+                    "Pick a model above to corrupt it.",
+            "sudden_jerk": "**Sudden jerk**: the rows before the jump and the rows "
+                           "after it each describe a perfectly sharp object, just "
+                           "two objects offset by the amplitude. The result is a "
+                           "superposition of two sharp copies — a **discrete "
+                           "ghost**, not a smear.",
+            "slow_drift": "**Slow drift**: every row disagrees slightly with its "
+                          "neighbours instead of splitting into two consistent "
+                          "blocks, so the inconsistency spreads continuously across "
+                          "k-space and reads as **blur** rather than a second copy.",
+            "periodic": "**Periodic**: a sinusoidal phase error is equivalent to "
+                        "convolving the image with a pair of offset deltas, giving a "
+                        "**regular train of ghosts** along the phase-encode axis. "
+                        "Raise the cycle count to push the ghosts further apart.",
+        }[motion_model]
+    )
+
+    if strategy != "radial":
+        st.caption(
+            "Caveat: acquisition time is modelled as the k-space row index across "
+            "all rows, but an undersampled Cartesian scan only acquires the rows "
+            "the mask keeps. The artifact character is unaffected (unsampled rows "
+            "are zeroed anyway), but the jerk position above is nominal, not exact."
+        )
+
+
+    with st.expander("Cartesian ghosts vs radial streaks", expanded=False):
+        st.markdown(
+            "The *same* motion, put through both trajectories at the same "
+            "sampling ratio. Collapsed by default because the radial pipeline "
+            "has to search for its spoke count the first time you open it.\n\n"
+            "Look at the **character** of the corruption, not the score: "
+            "Cartesian motion produces coherent ghosts — sharp, anatomy-shaped "
+            "copies that a radiologist can mistake for structure — while radial "
+            "spreads the same error into incoherent streaks."
+        )
+        left, right = st.columns(2)
+        for column, compare_kind in ((left, "cartesian"), (right, "radial")):
+            _, _, compare_recon, compare_scores, _ = acquire_with_motion(
+                sample_id, compare_kind, ratio, motion_model, motion_amp,
+                jerk_at, motion_cycles, snr_db, int(seed),
+            )
+            with column:
+                show_image(compare_recon, ks.MASK_LABELS[compare_kind])
+                metric_row(compare_scores)
+        st.warning(
+            "**Radial will usually score *worse* here, and that is a limitation "
+            "of this simulator rather than a fact about radial MRI.** Real "
+            "radial acquisition is motion-robust because every spoke "
+            "re-measures the k-space centre, and those redundant measurements "
+            "*average* — the motion errors partly cancel. This model rasterizes "
+            "spokes onto the Cartesian grid and gives each grid point a single "
+            "owning spoke, so no averaging happens: the centre becomes a "
+            "patchwork of many different phase errors instead of one averaged "
+            "value. That is worse than the Cartesian centre block, where a "
+            "contiguous run of rows mostly shares one patient position. "
+            "Reproducing the real advantage needs a gridding/NUFFT "
+            "reconstruction that accumulates every spoke crossing a point."
+        )
+
+
+# ---------------------------------------------------------------------------
+# Tab 7: provenance
+# ---------------------------------------------------------------------------
+
+with tabs[6]:
     st.subheader(meta["title"])
 
     left, right = st.columns([1, 2])
