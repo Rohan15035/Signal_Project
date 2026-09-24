@@ -1,0 +1,12 @@
+# Light "journal figure" theme, tuned for projection. The fonts, tables and
+# figure styling live in app/journal_ui.py; this file sets the colours that
+# Streamlit's own widgets (sliders, checkboxes, focus rings) use.
+[theme]
+base = "light"
+primaryColor = "#1D5FA8"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#EEF1F5"
+textColor = "#0F172A"
+
+[client]
+toolbarMode = "minimal"
