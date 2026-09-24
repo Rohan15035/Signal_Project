@@ -16,12 +16,16 @@ scipy>=1.10
 PyWavelets>=1.4
 streamlit>=1.30
 pandas>=2.0
+# The app's charts are drawn with Altair (a Streamlit dependency, listed
+# because app/journal_ui.py imports it directly) and its figure panels are
+# encoded as PNG with Pillow.
+altair>=5.0
+pillow>=9.0
 
 # --- Build-time only, for the k-space sample store (kspace_store/build.py) ---
 # These are needed to READ the raw dataset formats once, when building the
 # store. Reading the finished store (kspace_store/store.py) needs numpy only,
 # so a deployed web app does not need any of these.
 h5py>=3.8            # BrainTumorDataPublic .mat files are HDF5 underneath
-pillow>=9.0          # NINS JPEGs, and writing the preview PNGs
 pydicom>=2.4         # MRI_Dataset .ima spine studies
 nibabel>=5.0         # 3D_volumetric_imaging .nii volumes
