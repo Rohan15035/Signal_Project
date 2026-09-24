@@ -49,6 +49,12 @@ sys.path.insert(0, PROJECT_ROOT)
 from kspace_store.store import KSpaceStore          # noqa: E402
 from mri_sim import cs, kspace as ks, metrics, motion, noise, roi  # noqa: E402
 
+# The presentation layer lives next to this file.  puts the
+# script's directory on the path, but being explicit keeps imports working
+# however the app is launched.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import journal_ui as ui                              # noqa: E402
+
 # Anchored to the project root, not the working directory: `streamlit run`
 # can be invoked from anywhere, and a relative path would make the app
 # claim the store is missing when it is merely elsewhere.
@@ -57,6 +63,14 @@ STORE_PATH = os.path.join(PROJECT_ROOT, "data", "kspace_store")
 # Ratios used by the sweep tab. 1.0 is included as the "no undersampling"
 # reference point.
 SWEEP_RATIOS = [1.0, 0.5, 0.25, 0.125, 0.0625]
+
+# Short strategy names for captions, remarks and chart legends, where the
+# long `ks.MASK_LABELS` descriptions would wrap.
+SHORT_LABELS = {
+    "cartesian": "Cartesian",
+    "radial": "Radial",
+    "variable_density": "Variable-density",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -244,7 +258,7 @@ def sweep(sample_id: str, snr_db: float | None, seed: int) -> pd.DataFrame:
             _, _, scores = acquire(sample_id, kind, ratio, snr_db, seed)
             mask = build_mask(kind, load_sample(sample_id)[0].shape, ratio, seed)
             rows.append({
-                "strategy": ks.MASK_LABELS[kind],
+                "strategy": SHORT_LABELS[kind],
                 "sampling %": ks.sampling_ratio(mask) * 100.0,
                 "acceleration": ks.acceleration_factor(mask),
                 "PSNR (dB)": scores["psnr"],
@@ -300,60 +314,25 @@ def box_overlay(base: np.ndarray, box: roi.ROIBox) -> np.ndarray:
 # ---------------------------------------------------------------------------
 
 
-def show_image(array: np.ndarray, caption: str, stretch: bool = False) -> None:
-    """
-    Render a float image as a grayscale panel.
-
-    `stretch=False` pins the display range to [0, 1] so brightness is
-    comparable between panels -- important, because "the reconstruction is
-    darker than the original" is a real finding, not a display artifact.
-    """
-    data = np.asarray(array, dtype=np.float64)
-    if stretch:
-        low, high = float(data.min()), float(data.max())
-        data = (data - low) / (high - low) if high > low else np.zeros_like(data)
-    else:
-        data = np.clip(data, 0.0, 1.0)
-
-    # PNG, not Streamlit's default JPEG. This whole app is about the artifacts
-    # that appear when high frequencies are discarded -- rendering the panels
-    # through a lossy codec that does exactly that would add a second, fake
-    # layer of the very effect being demonstrated.
-    st.image(
-        data, caption=caption, use_container_width=True,
-        clamp=True, output_format="PNG",
-    )
-
-
-def show_kspace(kspace: np.ndarray, caption: str) -> None:
-    """Render k-space as log(1 + |K|), the only way its dynamic range is visible."""
-    log_magnitude = np.log1p(np.abs(kspace))
-    peak = float(log_magnitude.max())
-    show_image(log_magnitude / peak if peak > 0 else log_magnitude, caption)
-
-
-def show_error(original: np.ndarray, reconstruction: np.ndarray, caption: str) -> None:
-    """Absolute difference map, auto-scaled (the caption reports the true peak)."""
+def error_panel(original: np.ndarray, reconstruction: np.ndarray, label: str) -> dict:
+    """Absolute difference map, auto-scaled (the label reports the true peak)."""
     error = np.abs(original - reconstruction)
-    show_image(error, f"{caption} (peak {error.max():.3f})", stretch=True)
+    return ui.panel(error, f"{label} (peak {error.max():.3f})", stretch=True)
 
 
-def metric_row(scores: dict, baseline: dict | None = None) -> None:
-    """PSNR and SSIM as metric cards, optionally with a delta against a baseline."""
-    left, right = st.columns(2)
-    # A reduced-FOV reconstruction inside its own box can be exact, which
-    # makes PSNR infinite (log of a zero error). That is a real result, not a
-    # failure, so it is labelled rather than formatted into "inf dB".
-    psnr_text = ("exact (∞ dB)" if not np.isfinite(scores["psnr"])
-                 else f"{scores['psnr']:.2f} dB")
-    delta_text = None
-    if baseline is not None and np.isfinite(scores["psnr"]) and np.isfinite(baseline["psnr"]):
-        delta_text = f"{scores['psnr'] - baseline['psnr']:+.2f} dB"
-    left.metric("PSNR", psnr_text, delta_text)
-    right.metric(
-        "SSIM", f"{scores['ssim']:.4f}",
-        None if baseline is None else f"{scores['ssim'] - baseline['ssim']:+.4f}",
-    )
+def kspace_panel(kspace: np.ndarray, label: str) -> dict:
+    return ui.panel(ui.kspace_display(kspace), label)
+
+
+def sweep_long(table: pd.DataFrame, value: str) -> pd.DataFrame:
+    """
+    One metric from the sweep table, in long format for plotting.
+
+    The fully sampled point is dropped: its PSNR is infinite and its SSIM is
+    exactly 1, so it only stretches the axis without saying anything.
+    """
+    frame = table[table["sampling %"] < 99.5][["strategy", "sampling %", value]]
+    return frame[np.isfinite(frame[value])]
 
 
 # ---------------------------------------------------------------------------
@@ -361,15 +340,15 @@ def metric_row(scores: dict, baseline: dict | None = None) -> None:
 # ---------------------------------------------------------------------------
 
 st.set_page_config(
-    page_title="MRI k-Space Simulator",
-    page_icon="🧲",
+    page_title="MRI k-Space Reconstruction Simulator",
     layout="wide",
 )
+ui.apply_style()
 
-st.title("🧲 MRI k-Space Reconstruction Simulator")
-st.caption(
-    "How an MRI scanner acquires data in the Fourier domain, and what happens "
-    "to the image when you speed the scan up by measuring less of it."
+ui.title(
+    "MRI k-Space Reconstruction Simulator",
+    "Fourier-domain acquisition, and what happens to the image when a scan "
+    "is accelerated by measuring less of it",
 )
 
 try:
@@ -415,7 +394,10 @@ with st.sidebar:
         format="%.2f",
         help="Fraction of k-space the scanner acquires. 0.25 means a 4x faster scan.",
     )
-    st.caption(f"→ **{1 / ratio:.1f}× acceleration** (scan takes {ratio * 100:.0f}% of the time)")
+    ui.note(
+        f"R = {1 / ratio:.1f}, so the scan takes {ratio * 100:.0f}% of the full "
+        "acquisition time."
+    )
 
     st.divider()
 
@@ -436,9 +418,9 @@ with st.sidebar:
     )
 
     st.divider()
-    st.caption(
+    ui.note(
         f"Store: {len(store)} samples at "
-        f"{store.manifest['resolution']}×{store.manifest['resolution']}"
+        f"{store.manifest['resolution']}×{store.manifest['resolution']}."
     )
 
 # --- Load the chosen subject ------------------------------------------------
@@ -448,16 +430,17 @@ mask = build_mask(strategy, image.shape, ratio, int(seed))
 acquired, reconstruction, scores = acquire(
     sample_id, strategy, ratio, snr_db, int(seed)
 )
+strategy_label = SHORT_LABELS[strategy]
 
 tabs = st.tabs([
-    "1 · Acquire",
-    "2 · Centre vs edges",
-    "3 · Noise",
-    "4 · Compressed sensing",
-    "5 · Sweep",
-    "6 · Motion",
-    "7 · Reduced FOV",
-    "ℹ️ About this sample",
+    "1 Acquire",
+    "2 Centre vs edges",
+    "3 Noise",
+    "4 Compressed sensing",
+    "5 Sweep",
+    "6 Motion",
+    "7 Reduced FOV",
+    "8 Sample",
 ])
 
 # ---------------------------------------------------------------------------
@@ -466,52 +449,66 @@ tabs = st.tabs([
 
 with tabs[0]:
     st.subheader("The pipeline, end to end")
-    st.markdown(
+    ui.lede(
         "The scanner measures **k-space**, not an image. Skipping samples makes "
         "the scan faster; the inverse FFT then has to assume the missing samples "
         "were zero, and that wrong assumption is what you see as artifacts."
     )
 
-    columns = st.columns(5)
-    with columns[0]:
-        show_image(image, "1. Ground truth")
-    with columns[1]:
-        show_kspace(full_kspace, "2. Full k-space, log|K|")
-    with columns[2]:
-        show_image(mask, f"3. Mask — {ks.sampling_ratio(mask) * 100:.1f}% acquired")
-    with columns[3]:
-        show_kspace(acquired, "4. What the scanner got")
-    with columns[4]:
-        show_image(reconstruction, "5. Reconstruction (zero-filled)")
+    sampled = ks.sampling_ratio(mask) * 100
+    ui.figure(
+        [
+            ui.panel(image, "Ground truth"),
+            kspace_panel(full_kspace, "Full k-space, log(1 + |K|)"),
+            ui.panel(mask, f"Mask, {sampled:.1f}% acquired"),
+            kspace_panel(acquired, "What the scanner got"),
+            ui.panel(reconstruction, "Reconstruction (zero-filled)"),
+        ],
+        caption=(
+            f"{strategy_label} undersampling at R = {ks.acceleration_factor(mask):.1f} "
+            f"({sampled:.1f}% of k-space). (a) Ground truth. (b) Fully sampled "
+            "k-space on a log scale. (c) Sampling mask. (d) Acquired k-space. "
+            "(e) Zero-filled reconstruction."
+        ),
+        number="1",
+    )
 
-    left, right = st.columns([2, 3])
+    left, middle, right = st.columns([3, 2, 5], gap="large")
     with left:
-        st.markdown("**Reconstruction quality**")
-        metric_row(scores)
-        st.caption(
-            f"Acquired {ks.sampling_ratio(mask) * 100:.1f}% of k-space → "
-            f"{ks.acceleration_factor(mask):.1f}× faster scan."
+        ui.metrics_table(
+            scores,
+            caption="Reconstruction quality",
+            number="1",
+            extra=[
+                ("k-space acquired", f"{sampled:.1f}%"),
+                ("Acceleration", f"{ks.acceleration_factor(mask):.1f}×"),
+            ],
+        )
+    with middle:
+        ui.figure(
+            [error_panel(image, reconstruction, "Absolute error")],
+            first_letter="f",
         )
     with right:
-        show_error(image, reconstruction, "Absolute error")
-
-    st.info(
-        {
-            "cartesian": "**Cartesian**: skipping whole lines folds the image onto "
-                         "itself — the ghosts are crisp copies of the anatomy, "
-                         "shifted by FOV/acceleration. Coherent artifacts like these "
-                         "are the hardest kind to remove, because they look like real "
-                         "structure.",
-            "radial": "**Radial**: spokes oversample the centre and leave gaps that "
-                      "widen outward, so the error appears as streaks radiating from "
-                      "bright edges. Radial is also famously robust to motion, since "
-                      "every spoke re-measures the centre.",
-            "variable_density": "**Random variable-density**: the error is spread out "
-                                "as incoherent, noise-like grain instead of structured "
-                                "ghosts. That is exactly the property compressed "
-                                "sensing needs — see tab 4.",
-        }[strategy]
-    )
+        ui.remark(
+            {
+                "cartesian": "Skipping whole lines folds the image onto itself. "
+                             "The ghosts are crisp copies of the anatomy, shifted "
+                             "by FOV/acceleration. Coherent artifacts like these "
+                             "are the hardest kind to remove, because they look "
+                             "like real structure.",
+                "radial": "Spokes oversample the centre and leave gaps that "
+                          "widen outward, so the error appears as streaks "
+                          "radiating from bright edges. Radial is also known for "
+                          "being robust to motion, since every spoke re-measures "
+                          "the centre.",
+                "variable_density": "The error is spread out as incoherent, "
+                                    "noise-like grain instead of structured "
+                                    "ghosts. That is exactly the property "
+                                    "compressed sensing needs (see tab 4).",
+            }[strategy],
+            lead=f"{strategy_label}.",
+        )
 
 # ---------------------------------------------------------------------------
 # Tab 2: centre vs edges
@@ -519,7 +516,7 @@ with tabs[0]:
 
 with tabs[1]:
     st.subheader("Which part of k-space carries what?")
-    st.markdown(
+    ui.lede(
         "Both reconstructions below use the **same number of samples**. The only "
         "difference is *where* in k-space those samples were taken."
     )
@@ -534,47 +531,56 @@ with tabs[1]:
     center_recon = ks.from_kspace(ks.apply_mask(full_kspace, center_mask))
     edges_recon = ks.from_kspace(ks.apply_mask(full_kspace, edges_mask))
 
-    left, right = st.columns(2)
+    left, right = st.columns(2, gap="large")
 
     with left:
-        st.markdown("#### Centre only — a low-pass filter")
-        inner = st.columns(3)
-        with inner[0]:
-            show_image(center_mask, "Mask")
-        with inner[1]:
-            show_image(center_recon, "As reconstructed")
-        with inner[2]:
-            show_image(center_recon, "Contrast stretched", stretch=True)
-        metric_row(metrics.compute_metrics(image, center_recon))
-        st.success(
+        st.markdown("#### Centre only: a low-pass filter")
+        ui.figure(
+            [
+                ui.panel(center_mask, "Mask"),
+                ui.panel(center_recon, "As reconstructed"),
+                ui.panel(center_recon, "Contrast stretched", stretch=True),
+            ],
+        )
+        ui.metrics_table(metrics.compute_metrics(image, center_recon))
+        ui.remark(
             f"Mean brightness **{center_recon.mean():.3f}** vs {image.mean():.3f} "
-            "for the original — contrast and shape are intact, only fine detail is "
+            "for the original. Contrast and shape are intact; only fine detail is "
             "lost. The faint rings around sharp edges are **Gibbs ringing**, from "
-            "truncating the Fourier series at the rim of the disc."
+            "truncating the Fourier series at the rim of the disc.",
+            kind="result",
         )
 
     with right:
-        st.markdown("#### Edges only — a high-pass filter")
-        inner = st.columns(3)
-        with inner[0]:
-            show_image(edges_mask, "Mask")
-        with inner[1]:
-            show_image(edges_recon, "As reconstructed")
-        with inner[2]:
-            show_image(edges_recon, "Contrast stretched", stretch=True)
-        metric_row(metrics.compute_metrics(image, edges_recon))
-        st.error(
-            f"Mean brightness **{edges_recon.mean():.4f}** — essentially black. "
+        st.markdown("#### Edges only: a high-pass filter")
+        ui.figure(
+            [
+                ui.panel(edges_mask, "Mask"),
+                ui.panel(edges_recon, "As reconstructed"),
+                ui.panel(edges_recon, "Contrast stretched", stretch=True),
+            ],
+            first_letter="d",
+        )
+        ui.metrics_table(metrics.compute_metrics(image, edges_recon))
+        ui.remark(
+            f"Mean brightness **{edges_recon.mean():.4f}**, essentially black. "
             "Throwing away the centre throws away the DC term, i.e. the average "
             "brightness of the whole image, along with every slowly-varying "
-            "structure. Stretched, it is an edge map."
+            "structure. Stretched, it is an edge map.",
+            kind="caution",
         )
 
+    ui.caption(
+        f"Two masks keeping the same {demo_ratio * 100:.0f}% of k-space. "
+        "(a–c) Central disc only. (d–f) Everything except the central disc.",
+        number="2",
+    )
+
     energy = meta["stats"]["energy_within_r0.1"]
-    st.info(
+    ui.remark(
         f"For this sample, **{energy * 100:.1f}%** of all k-space energy sits inside "
-        "the central 10% radius — about 1% of the samples. That is why every "
-        "realistic mask in tab 1 protects the centre."
+        "the central 10% radius, which is about 1% of the samples. That is why "
+        "every realistic mask in tab 1 protects the centre."
     )
 
 # ---------------------------------------------------------------------------
@@ -583,10 +589,10 @@ with tabs[1]:
 
 with tabs[2]:
     st.subheader("Scanner noise lives in k-space")
-    st.markdown(
+    ui.lede(
         "Real noise is added to the **measured samples**, not to the finished "
-        "image. It is complex (the receiver has an I and a Q channel) and white "
-        "— the same power at every frequency. Since the outer samples are tiny "
+        "image. It is complex (the receiver has an I and a Q channel) and white, "
+        "with the same power at every frequency. Since the outer samples are tiny "
         "and the centre is huge, the same noise destroys fine detail long before "
         "it touches overall contrast."
     )
@@ -603,32 +609,40 @@ with tabs[2]:
     )
     noisy_under = ks.from_kspace(noisy_acquired)
 
-    columns = st.columns(4)
-    with columns[0]:
-        show_image(image, "Ground truth")
-        st.caption("noiseless, fully sampled")
-    with columns[1]:
-        show_image(noisy_recon, "Noisy, fully sampled")
-        metric_row(metrics.compute_metrics(image, noisy_recon))
-    with columns[2]:
-        show_image(reconstruction, f"Undersampled {ratio * 100:.0f}%, noiseless")
-        metric_row(scores)
-    with columns[3]:
-        show_image(noisy_under, f"Undersampled {ratio * 100:.0f}% + noise")
-        metric_row(metrics.compute_metrics(image, noisy_under))
+    ui.figure(
+        [
+            ui.panel(image, "Ground truth"),
+            ui.panel(noisy_recon, "Noisy, fully sampled"),
+            ui.panel(reconstruction, f"Undersampled {ratio * 100:.0f}%, noiseless"),
+            ui.panel(noisy_under, f"Undersampled {ratio * 100:.0f}% + noise"),
+        ],
+        caption=(
+            f"Noise at {demo_snr:.0f} dB k-space SNR, with and without "
+            f"{strategy_label.lower()} undersampling. (a) Noiseless, fully "
+            "sampled reference."
+        ),
+        number="3",
+    )
 
-    st.caption(
+    columns = st.columns(4, gap="medium")
+    for column, recon in zip(
+        columns[1:], (noisy_recon, reconstruction, noisy_under)
+    ):
+        with column:
+            ui.metrics_table(metrics.compute_metrics(image, recon))
+
+    ui.note(
         f"Verification: requested {demo_snr:.0f} dB, measured "
         f"{noise.measured_snr_db(full_kspace, noisy_full):.2f} dB on the full k-space."
     )
 
-    with st.expander("Why does undersampling let in *less* total noise?"):
+    with st.expander("Why does undersampling let in less total noise?"):
         st.markdown(
             "Noise enters once per measurement, so a mask that keeps 25% of "
-            "k-space also admits about 25% of the noise energy — the familiar "
+            "k-space also admits about 25% of the noise energy, the familiar "
             "`SNR ∝ √N` of MRI. That does **not** make fast scans cleaner: you "
-            "lose signal and gain artifacts at the same time. The honest "
-            "statement is that a faster scan is noisier *per unit of signal*.\n\n"
+            "lose signal and gain artifacts at the same time. A faster scan is "
+            "noisier *per unit of signal*.\n\n"
             "Notice also that the magnitude operation turns zero-mean complex "
             "noise into strictly positive **Rician** noise, which is why the "
             "background of a noisy MRI image is a faint grey haze rather than "
@@ -641,22 +655,22 @@ with tabs[2]:
 
 with tabs[3]:
     st.subheader("Compressed sensing: a better guess at the missing data")
-    st.markdown(
+    ui.lede(
         "Zero-filling assumes every unmeasured point was zero. Compressed "
         "sensing instead asks: *of all the images consistent with what we "
         "measured, which one is the sparsest in a wavelet basis?* It needs the "
-        "**random variable-density** mask, because its artifacts are incoherent "
-        "— Cartesian ghosts are just as sparse as real anatomy, so no sparsity "
+        "**random variable-density** mask, because its artifacts are incoherent. "
+        "Cartesian ghosts are just as sparse as real anatomy, so no sparsity "
         "prior can tell them apart."
     )
 
-    controls = st.columns(3)
+    controls = st.columns(3, gap="large")
     cs_ratio = controls[0].slider(
         "k-space sampled", min_value=0.03, max_value=0.5, value=0.125, step=0.005,
         format="%.3f", key="cs_ratio",
     )
     cs_lambda = controls[1].slider(
-        "λ — sparsity strength", min_value=0.002, max_value=0.10, value=0.01,
+        "λ, sparsity strength", min_value=0.002, max_value=0.10, value=0.01,
         step=0.002, format="%.3f",
         help="Larger = sparser = smoother. Too large and real anatomy is "
              "thresholded away.",
@@ -668,37 +682,64 @@ with tabs[3]:
     with st.spinner("Running FISTA..."):
         result = run_cs(sample_id, cs_ratio, cs_lambda, cs_iters, snr_db, int(seed))
 
-    columns = st.columns(3)
-    with columns[0]:
-        show_image(result["mask"], f"Mask — {ks.sampling_ratio(result['mask']) * 100:.1f}%")
-        st.caption(f"{1 / ks.sampling_ratio(result['mask']):.1f}× acceleration")
-    with columns[1]:
-        show_image(result["zero_fill_image"], "Zero-filled (linear, instant)")
-        metric_row(result["zero_fill_metrics"])
-    with columns[2]:
-        show_image(result["cs_image"], "Compressed sensing (FISTA)")
-        metric_row(result["cs_metrics"], baseline=result["zero_fill_metrics"])
+    cs_sampled = ks.sampling_ratio(result["mask"])
+    left, right = st.columns([3, 2], gap="large")
+    with left:
+        ui.figure(
+            [
+                ui.panel(result["mask"], f"Mask, {cs_sampled * 100:.1f}%"),
+                ui.panel(result["zero_fill_image"], "Zero-filled (linear, instant)"),
+                ui.panel(result["cs_image"], "Compressed sensing (FISTA)"),
+            ],
+            caption=(
+                f"Variable-density sampling at R = {1 / cs_sampled:.1f}, "
+                f"λ = {cs_lambda:.3f}, {cs_iters} iterations. (b) and (c) use "
+                "exactly the same measurements."
+            ),
+            number="4",
+        )
+    with right:
+        z, c = result["zero_fill_metrics"], result["cs_metrics"]
+        rows = [
+            ("PSNR", ui.format_psnr(z["psnr"]), ui.format_psnr(c["psnr"])),
+            ("SSIM", f"{z['ssim']:.4f}", f"{c['ssim']:.4f}"),
+        ]
+        ui.table(
+            ["Metric", "Zero-filled", "Compressed sensing"], rows,
+            caption="Zero-filling vs compressed sensing", number="4",
+        )
+
+        delta_psnr = c["psnr"] - z["psnr"]
+        delta_ssim = c["ssim"] - z["ssim"]
+        if delta_psnr > 0:
+            ui.remark(
+                f"CS wins by **{delta_psnr:+.2f} dB** PSNR and **{delta_ssim:+.4f}** "
+                "SSIM from exactly the same measurements.",
+                kind="result",
+            )
+        else:
+            ui.remark(
+                f"At this ratio CS trades **{delta_psnr:.2f} dB** of PSNR for "
+                f"**{delta_ssim:+.4f}** SSIM. That is the expected behaviour when "
+                "undersampling is mild: zero-filling is already close to perfect, so "
+                "the sparsity prior costs more than it gains. Push the ratio below "
+                "~0.15 and CS pulls ahead on both.",
+                kind="caution",
+            )
 
     history = pd.DataFrame(result["history"])
     if "psnr" in history:
-        chart = history[["iteration", "psnr"]].rename(columns={"psnr": "compressed sensing"})
-        chart["zero-fill baseline"] = result["zero_fill_metrics"]["psnr"]
-        st.line_chart(chart, x="iteration", y=["compressed sensing", "zero-fill baseline"])
-
-    delta_psnr = result["cs_metrics"]["psnr"] - result["zero_fill_metrics"]["psnr"]
-    delta_ssim = result["cs_metrics"]["ssim"] - result["zero_fill_metrics"]["ssim"]
-    if delta_psnr > 0:
-        st.success(
-            f"CS wins by **{delta_psnr:+.2f} dB** PSNR and **{delta_ssim:+.4f}** SSIM "
-            "from exactly the same measurements."
+        st.markdown("#### Convergence")
+        ui.line_chart(
+            history, x="iteration", y="psnr",
+            x_title="FISTA iteration", y_title="PSNR (dB)",
+            reference=(z["psnr"], f"zero-fill baseline, {z['psnr']:.2f} dB"),
+            points=False, height=300,
         )
-    else:
-        st.warning(
-            f"At this ratio CS trades **{delta_psnr:.2f} dB** of PSNR for "
-            f"**{delta_ssim:+.4f}** SSIM. That is the expected behaviour when "
-            "undersampling is mild: zero-filling is already close to perfect, so "
-            "the sparsity prior costs more than it gains. Push the ratio below "
-            "~0.15 and CS pulls ahead on both."
+        ui.caption(
+            "PSNR of the compressed-sensing estimate at each iteration. The "
+            "dashed line is the zero-filled reconstruction.",
+            number="5",
         )
 
 # ---------------------------------------------------------------------------
@@ -707,35 +748,45 @@ with tabs[3]:
 
 with tabs[4]:
     st.subheader("Quality versus acceleration")
-    st.markdown(
-        "Every strategy, every ratio, scored against the ground truth — the "
-        "quantitative version of tab 1."
+    ui.lede(
+        "Every strategy, every ratio, scored against the ground truth. This is "
+        "the quantitative version of tab 1."
     )
 
     with st.spinner("Sweeping..."):
         table = sweep(sample_id, snr_db, int(seed))
 
-    left, right = st.columns(2)
+    order = [SHORT_LABELS[kind] for kind in ks.ACQUISITION_MASKS]
+    left, right = st.columns(2, gap="large")
     with left:
-        st.markdown("**PSNR (dB) vs sampling %**")
-        st.line_chart(
-            table.pivot(index="sampling %", columns="strategy", values="PSNR (dB)")
+        ui.line_chart(
+            sweep_long(table, "PSNR (dB)"), x="sampling %", y="PSNR (dB)",
+            series="strategy", series_order=order,
+            x_title="k-space sampled (%)", y_title="PSNR (dB)", log2_x=True,
         )
     with right:
-        st.markdown("**SSIM vs sampling %**")
-        st.line_chart(
-            table.pivot(index="sampling %", columns="strategy", values="SSIM")
+        ui.line_chart(
+            sweep_long(table, "SSIM"), x="sampling %", y="SSIM",
+            series="strategy", series_order=order,
+            x_title="k-space sampled (%)", y_title="SSIM", log2_x=True,
         )
+    ui.caption(
+        "Reconstruction quality against the fraction of k-space acquired, on a "
+        "log₂ axis so each step is a doubling of acceleration. Left: PSNR. "
+        "Right: SSIM. The fully sampled point is omitted (PSNR is infinite).",
+        number="6",
+    )
 
-    st.dataframe(
-        table.style.format({
+    ui.dataframe_table(
+        table,
+        {
             "sampling %": "{:.1f}",
             "acceleration": "{:.1f}×",
             "PSNR (dB)": "{:.2f}",
             "SSIM": "{:.4f}",
-        }),
-        use_container_width=True,
-        hide_index=True,
+        },
+        caption="All strategies at every sampling ratio",
+        number="5",
     )
     st.download_button(
         "Download as CSV",
@@ -750,24 +801,24 @@ with tabs[4]:
 
 with tabs[5]:
     st.subheader("Patient motion during the scan")
-    st.markdown(
-        "Moving the patient does **not** change the magnitude of k-space — it "
+    ui.lede(
+        "Moving the patient does **not** change the magnitude of k-space. It "
         "stamps a linear **phase ramp** on it. A *uniform* shift is therefore "
         "harmless: the image simply moves. The artifact comes from the patient "
         "being in a **different place for different parts of the scan**, so the "
         "measured k-space is not the transform of any one consistent object."
     )
 
-    controls = st.columns(4)
+    controls = st.columns(4, gap="medium")
     motion_model = controls[0].selectbox(
         "Motion model",
         ["none", "sudden_jerk", "slow_drift", "periodic"],
         index=1,
         format_func={
             "none": "None",
-            "sudden_jerk": "Sudden jerk → ghost",
-            "slow_drift": "Slow drift → blur",
-            "periodic": "Periodic (breathing) → ghost train",
+            "sudden_jerk": "Sudden jerk (ghost)",
+            "slow_drift": "Slow drift (blur)",
+            "periodic": "Periodic breathing (ghost train)",
         }.get,
     )
     motion_amp = controls[1].slider(
@@ -781,7 +832,7 @@ with tabs[5]:
     motion_cycles = controls[3].slider(
         "Cycles over the scan", min_value=0.5, max_value=20.0, value=6.0, step=0.5,
         disabled=motion_model != "periodic",
-        help="How many breathing cycles fit in one scan — this sets the ghost spacing.",
+        help="How many breathing cycles fit in one scan; this sets the ghost spacing.",
     )
 
     mask_m, acquired_m, recon_m, scores_m, displacements = acquire_with_motion(
@@ -789,57 +840,78 @@ with tabs[5]:
         motion_cycles, snr_db, int(seed),
     )
 
-    columns = st.columns(4)
-    with columns[0]:
-        show_image(image, "Ground truth")
+    ui.figure(
+        [
+            ui.panel(image, "Ground truth"),
+            ui.panel(reconstruction, "No motion"),
+            ui.panel(recon_m, "With motion"),
+            error_panel(image, recon_m, "Motion error"),
+        ],
+        caption=(
+            f"{strategy_label} acquisition at {ratio * 100:.0f}% of k-space, "
+            f"without and with {motion_amp:.1f} px of patient motion. (d) is the "
+            "absolute error of (c)."
+        ),
+        number="7",
+    )
+
+    columns = st.columns(4, gap="medium")
     with columns[1]:
-        show_image(reconstruction, "No motion")
-        metric_row(scores)
+        ui.metrics_table(scores)
     with columns[2]:
-        show_image(recon_m, "With motion")
-        metric_row(scores_m, baseline=scores)
-    with columns[3]:
-        show_error(image, recon_m, "Motion error")
+        ui.metrics_table(scores_m, baseline=scores)
 
-    st.markdown("**Where the patient was, over the course of the scan**")
-    st.line_chart(
-        pd.DataFrame({"dy (pixels)": [dy for dy, _ in displacements]}),
-        y="dy (pixels)",
-    )
-    st.caption(
-        "x axis is "
-        + ("spoke index" if strategy == "radial" else "k-space row")
-        + " — i.e. acquisition time, earliest on the left."
-    )
-
-    st.info(
-        {
-            "none": "**No motion** — this is the same reconstruction as tab 1. "
-                    "Pick a model above to corrupt it.",
-            "sudden_jerk": "**Sudden jerk**: the rows before the jump and the rows "
-                           "after it each describe a perfectly sharp object, just "
-                           "two objects offset by the amplitude. The result is a "
-                           "superposition of two sharp copies — a **discrete "
-                           "ghost**, not a smear.",
-            "slow_drift": "**Slow drift**: every row disagrees slightly with its "
-                          "neighbours instead of splitting into two consistent "
-                          "blocks, so the inconsistency spreads continuously across "
-                          "k-space and reads as **blur** rather than a second copy.",
-            "periodic": "**Periodic**: a sinusoidal phase error is equivalent to "
-                        "convolving the image with a pair of offset deltas, giving a "
-                        "**regular train of ghosts** along the phase-encode axis. "
-                        "Raise the cycle count to push the ghosts further apart.",
-        }[motion_model]
-    )
-
-    if strategy != "radial":
-        st.caption(
-            "Caveat: acquisition time is modelled as the k-space row index across "
-            "all rows, but an undersampled Cartesian scan only acquires the rows "
-            "the mask keeps. The artifact character is unaffected (unsampled rows "
-            "are zeroed anyway), but the jerk position above is nominal, not exact."
+    left, right = st.columns([3, 2], gap="large")
+    with left:
+        axis = "Spoke index" if strategy == "radial" else "k-space row"
+        ui.line_chart(
+            pd.DataFrame({
+                "event": np.arange(len(displacements)),
+                "dy": [dy for dy, _ in displacements],
+            }),
+            x="event", y="dy", x_title=f"{axis} (acquisition time)",
+            y_title="dy (pixels)", points=False, height=260,
         )
-
+        ui.caption(
+            "Where the patient was over the course of the scan, earliest on the left.",
+            number="8",
+        )
+    with right:
+        ui.remark(
+            {
+                "none": "This is the same reconstruction as tab 1. Pick a model "
+                        "above to corrupt it.",
+                "sudden_jerk": "The rows before the jump and the rows after it "
+                               "each describe a perfectly sharp object, just two "
+                               "objects offset by the amplitude. The result is a "
+                               "superposition of two sharp copies: a **discrete "
+                               "ghost**, not a smear.",
+                "slow_drift": "Every row disagrees slightly with its neighbours "
+                              "instead of splitting into two consistent blocks, so "
+                              "the inconsistency spreads continuously across "
+                              "k-space and reads as **blur** rather than a second "
+                              "copy.",
+                "periodic": "A sinusoidal phase error is equivalent to convolving "
+                            "the image with a pair of offset deltas, giving a "
+                            "**regular train of ghosts** along the phase-encode "
+                            "axis. Raise the cycle count to push the ghosts "
+                            "further apart.",
+            }[motion_model],
+            lead={
+                "none": "No motion.",
+                "sudden_jerk": "Sudden jerk.",
+                "slow_drift": "Slow drift.",
+                "periodic": "Periodic motion.",
+            }[motion_model],
+        )
+        if strategy != "radial":
+            ui.remark(
+                "Acquisition time is modelled as the k-space row index across "
+                "all rows, but an undersampled Cartesian scan only acquires the rows "
+                "the mask keeps. The artifact character is unaffected (unsampled rows "
+                "are zeroed anyway), but the jerk position above is nominal, not exact.",
+                kind="note",
+            )
 
     with st.expander("Cartesian ghosts vs radial streaks", expanded=False):
         st.markdown(
@@ -847,32 +919,38 @@ with tabs[5]:
             "sampling ratio. Collapsed by default because the radial pipeline "
             "has to search for its spoke count the first time you open it.\n\n"
             "Look at the **character** of the corruption, not the score: "
-            "Cartesian motion produces coherent ghosts — sharp, anatomy-shaped "
-            "copies that a radiologist can mistake for structure — while radial "
+            "Cartesian motion produces coherent ghosts, sharp anatomy-shaped "
+            "copies that a radiologist can mistake for structure, while radial "
             "spreads the same error into incoherent streaks."
         )
-        left, right = st.columns(2)
-        for column, compare_kind in ((left, "cartesian"), (right, "radial")):
-            _, _, compare_recon, compare_scores, _ = acquire_with_motion(
-                sample_id, compare_kind, ratio, motion_model, motion_amp,
+        compared = {
+            kind: acquire_with_motion(
+                sample_id, kind, ratio, motion_model, motion_amp,
                 jerk_at, motion_cycles, snr_db, int(seed),
             )
+            for kind in ("cartesian", "radial")
+        }
+        left, right = st.columns(2, gap="large")
+        for column, kind, letter in ((left, "cartesian", "a"), (right, "radial", "b")):
+            _, _, compare_recon, compare_scores, _ = compared[kind]
             with column:
-                show_image(compare_recon, ks.MASK_LABELS[compare_kind])
-                metric_row(compare_scores)
-        st.warning(
+                ui.figure([ui.panel(compare_recon, ks.MASK_LABELS[kind])], first_letter=letter)
+                ui.metrics_table(compare_scores)
+        ui.remark(
             "**Radial will usually score *worse* here, and that is a limitation "
             "of this simulator rather than a fact about radial MRI.** Real "
             "radial acquisition is motion-robust because every spoke "
             "re-measures the k-space centre, and those redundant measurements "
-            "*average* — the motion errors partly cancel. This model rasterizes "
+            "*average*, so the motion errors partly cancel. This model rasterizes "
             "spokes onto the Cartesian grid and gives each grid point a single "
             "owning spoke, so no averaging happens: the centre becomes a "
             "patchwork of many different phase errors instead of one averaged "
             "value. That is worse than the Cartesian centre block, where a "
             "contiguous run of rows mostly shares one patient position. "
             "Reproducing the real advantage needs a gridding/NUFFT "
-            "reconstruction that accumulates every spoke crossing a point."
+            "reconstruction that accumulates every spoke crossing a point.",
+            kind="caution",
+            lead="Limitation.",
         )
 
 
@@ -882,17 +960,17 @@ with tabs[5]:
 
 with tabs[6]:
     st.subheader("Scan only the part that matters")
-    st.markdown(
-        "*“We only care about the pituitary / this one lesion. Can we scan "
-        "just that bit and finish in a fraction of the time?”* Yes — but not "
+    ui.lede(
+        "*“We only care about the pituitary, or this one lesion. Can we scan "
+        "just that bit and finish in a fraction of the time?”* Yes, but not "
         "the way almost everyone first guesses, and the gap between the wrong "
         "guess and the right answer is the whole lesson."
     )
 
     st.markdown("### 1. The wrong answer: keep the part of k-space where the target is")
-    st.markdown(
+    ui.lede(
         "The lesion is in the top-left of the image, so keep the top-left of "
-        "k-space — right? Delete one quadrant of k-space and watch **where** "
+        "k-space? Delete one quadrant of k-space and watch **where** "
         "in the image the damage lands."
     )
 
@@ -904,54 +982,67 @@ with tabs[6]:
     )
     locality = roi_locality(sample_id, quadrant)
 
-    columns = st.columns(4)
-    with columns[0]:
-        show_image(image, "Ground truth")
-    with columns[1]:
-        show_kspace(locality["kspace_damaged"], f"k-space, {quadrant} deleted")
-    with columns[2]:
-        show_image(locality["reconstruction"], "Reconstruction")
-    with columns[3]:
-        show_error(image, locality["reconstruction"], "Where the error landed")
+    left, right = st.columns([3, 1], gap="large")
+    with left:
+        ui.figure(
+            [
+                ui.panel(image, "Ground truth"),
+                kspace_panel(locality["kspace_damaged"], f"k-space, {quadrant} deleted"),
+                ui.panel(locality["reconstruction"], "Reconstruction"),
+                error_panel(image, locality["reconstruction"], "Where the error landed"),
+            ],
+            caption=(
+                f"Deleting the {quadrant} quadrant of k-space. (d) is the absolute "
+                "error of (c), spread across the whole image."
+            ),
+            number="9",
+        )
+    with right:
+        errors = locality["quadrant_errors"]
+        ui.dataframe_table(
+            pd.DataFrame(
+                errors,
+                index=["Top half", "Bottom half"],
+                columns=["Left half", "Right half"],
+            ),
+            {"Left half": "{:.4f}", "Right half": "{:.4f}"},
+            caption="Mean absolute error per image quadrant",
+            number="6",
+            index=True,
+        )
 
-    errors = locality["quadrant_errors"]
-    st.dataframe(
-        pd.DataFrame(
-            errors,
-            index=["top half", "bottom half"],
-            columns=["left half", "right half"],
-        ).style.format("{:.4f}"),
-        use_container_width=True,
-    )
     spread = errors.max() / errors.min()
-    st.error(
-        f"Mean absolute error per image quadrant — the largest is only "
-        f"**{spread:.1f}×** the smallest, nowhere near the total wipeout in one "
-        f"cell that the guess predicts. Deleting the {quadrant} of k-space "
-        "damaged the **entire image**, roughly evenly. k-space is **not "
-        "spatially local**: every sample is an inner product of the *whole* "
-        "slice with one global sinusoid, so every sample carries information "
-        "about every pixel. Position lives in the **phase relationships "
-        "between** samples, not in where the samples sit."
+    ui.remark(
+        f"The largest quadrant error is only **{spread:.1f}×** the smallest, "
+        "nowhere near the total wipeout in one cell that the guess predicts. "
+        f"Deleting the {quadrant} of k-space damaged the **entire image**, roughly "
+        "evenly. k-space is **not spatially local**: every sample is an inner "
+        "product of the *whole* slice with one global sinusoid, so every sample "
+        "carries information about every pixel. Position lives in the **phase "
+        "relationships between** samples, not in where the samples sit.",
+        kind="caution",
     )
 
-    st.divider()
+    ui.rule()
     st.markdown("### 2. The right answer: shrink the FOV, not the k-space region")
 
-    left, right = st.columns([3, 2])
+    left, right = st.columns([3, 2], gap="large")
     with left:
-        st.markdown(
+        ui.lede(
             "Two *independent* Fourier relationships govern a Cartesian scan, "
             "and the entire method is about keeping them apart:"
         )
-        st.markdown(
-            "| knob | what it controls |"
-            "\n| --- | --- |"
-            "\n| `dk` — spacing between samples | **FOV** = 1 / dk |"
-            "\n| `k_max` — how far out you sample | **resolution** = 1 / (2·k_max) |"
+        ui.table(
+            ["Knob", "What it controls"],
+            [
+                ("<code>dk</code>, spacing between samples", "<strong>FOV</strong> = 1 / dk"),
+                ("<code>k_max</code>, how far out you sample",
+                 "<strong>resolution</strong> = 1 / (2·k_max)"),
+            ],
+            numeric=[False, False],
         )
-        st.markdown(
-            "Tab 2's centre-only sampling shrinks `k_max` — the **wrong knob**, "
+        ui.lede(
+            "Tab 2's centre-only sampling shrinks `k_max`, the **wrong knob**: "
             "it buys speed with resolution. Reduced-FOV turns the other one: a "
             "spatially selective RF pulse excites *only a box* around the "
             "target, so the object itself is now R times smaller, so samples "
@@ -959,15 +1050,17 @@ with tabs[6]:
             "`k_max` never changes, so **resolution never changes**."
         )
     with right:
-        st.info(
+        ui.remark(
             "In this simulator the RF pulse is emulated by multiplying the "
             "image by a box **before** the forward FFT. That is a model, not a "
             "cheat: spatially restricting the excitation is exactly what the "
-            "physical pulse does, and everything after it — FFT, decimation, "
-            "inverse FFT — is the real pipeline."
+            "physical pulse does, and everything after it (FFT, decimation, "
+            "inverse FFT) is the real pipeline.",
+            kind="note",
+            lead="Modelling note.",
         )
 
-    controls = st.columns([1, 2, 2])
+    controls = st.columns([1, 2, 2], gap="large")
     legal_R = roi.reduction_factors(image.shape)
     R = controls[0].selectbox(
         "Reduction factor R",
@@ -987,14 +1080,15 @@ with tabs[6]:
 
     if use_tumor:
         center = roi.roi_center_from_mask(tumor_mask)
-        controls[1].caption(f"Tumour centroid: row {center[0]}, col {center[1]}")
+        with controls[1]:
+            ui.note(f"Tumour centroid: row {center[0]}, col {center[1]}.")
     else:
         center_y = controls[1].slider(
-            "ROI centre — row", 0, image.shape[0] - 1, image.shape[0] // 2,
+            "ROI centre, row", 0, image.shape[0] - 1, image.shape[0] // 2,
             key="roi_cy",
         )
         center_x = controls[2].slider(
-            "ROI centre — column", 0, image.shape[1] - 1, image.shape[1] // 2,
+            "ROI centre, column", 0, image.shape[1] - 1, image.shape[1] // 2,
             key="roi_cx",
         )
         center = (center_y, center_x)
@@ -1004,69 +1098,74 @@ with tabs[6]:
     method = comparison["variants"][0]
     compact = roi.compact_reconstruct(method["kspace"], int(R), box)
 
-    st.caption(
-        f"Box: {box.size}×{box.size} px at rows {box.y0}–{box.y0 + box.size}, "
-        f"cols {box.x0}–{box.x0 + box.size}. Sampling every {R}th point on both "
-        f"axes = {100.0 / (R * R):.2f}% of k-space = **{R * R}× faster**, at "
-        "full resolution inside the box."
+    ui.figure(
+        [
+            ui.panel(box_overlay(image, box), "Where the box goes"),
+            ui.panel(method["object"], "After the RF pulse"),
+            ui.panel(method["mask"], f"Every {R}th sample"),
+            ui.panel(method["reconstruction"], "Reconstructed, full grid"),
+            ui.panel(compact, f"What the scanner returns ({box.size}×{box.size})"),
+        ],
+        caption=(
+            f"Reduced-FOV acquisition with a {box.size}×{box.size} px box at rows "
+            f"{box.y0}–{box.y0 + box.size}, cols {box.x0}–{box.x0 + box.size}. "
+            f"Sampling every {R}th point on both axes keeps {100.0 / (R * R):.2f}% "
+            f"of k-space, a **{R * R}× faster** scan at full resolution inside "
+            "the box."
+        ),
+        number="10",
     )
 
-    columns = st.columns(5)
-    with columns[0]:
-        show_image(box_overlay(image, box), "1. Where the box goes")
-    with columns[1]:
-        show_image(method["object"], "2. After the RF pulse")
-    with columns[2]:
-        show_image(method["mask"], f"3. Every {R}th sample")
-    with columns[3]:
-        show_image(method["reconstruction"], "4. Reconstructed, full grid")
-    with columns[4]:
-        show_image(compact, f"5. What the scanner returns ({box.size}×{box.size})")
+    left, right = st.columns([1, 2], gap="large")
+    with left:
+        ui.metrics_table(
+            {"psnr": method["psnr"], "ssim": method["ssim"]},
+            caption="Scored inside the box only",
+        )
+    with right:
+        ui.remark(
+            "Whole-image metrics are meaningless here, because nothing outside "
+            "the box was excited, so there is no ground truth out there to get "
+            "wrong. Panel (d) shows the periodic replicas of the ROI filling the "
+            "rest of the FOV; that is expected and harmless. Panel (e) is the "
+            "real output: a smaller field of view at **the same resolution**, "
+            "which is all that was ever measured.",
+            kind="result",
+        )
 
-    metric_row({"psnr": method["psnr"], "ssim": method["ssim"]})
-    st.success(
-        "Scored **inside the box only** — whole-image metrics are meaningless "
-        "here, because nothing outside the box was excited, so there is no "
-        "ground truth out there to get wrong. Panel 4 shows the periodic "
-        "replicas of the ROI filling the rest of the FOV; that is expected and "
-        "harmless. Panel 5 is the honest output: a smaller field of view at "
-        "**the same resolution**, which is all that was ever measured."
-    )
-
-    st.divider()
+    ui.rule()
     st.markdown("### 3. Four ways to spend the same number of samples")
-    st.markdown(
-        f"All four acquisitions below use ~**{100.0 / (R * R):.2f}%** of "
-        "k-space — the same scan time. They differ only in the idea behind "
+    ui.lede(
+        f"All four acquisitions below use about **{100.0 / (R * R):.2f}%** of "
+        "k-space, the same scan time. They differ only in the idea behind "
         "how to spend it. Every one is scored inside the ROI."
     )
 
-    columns = st.columns(4)
-    for column, variant in zip(columns, comparison["variants"]):
-        with column:
-            show_image(variant["reconstruction"], variant["label"])
-            metric_row({"psnr": variant["psnr"], "ssim": variant["ssim"]})
-            st.caption(variant["note"])
+    ui.figure(
+        [ui.panel(variant["reconstruction"], variant["label"])
+         for variant in comparison["variants"]],
+        caption=" ".join(
+            f"({chr(ord('a') + i)}) "
+            + variant["note"].replace(" -> ", " → ").replace(" -- ", ": ") + "."
+            for i, variant in enumerate(comparison["variants"])
+        ),
+        number="11",
+    )
 
-    table = pd.DataFrame([
-        {
-            "strategy": variant["label"],
-            "k-space used %": variant["ratio"] * 100.0,
-            "acceleration": variant["acceleration"],
-            "PSNR in ROI (dB)": variant["psnr"],
-            "SSIM in ROI": variant["ssim"],
-        }
-        for variant in comparison["variants"]
-    ])
-    st.dataframe(
-        table.style.format({
-            "k-space used %": "{:.2f}",
-            "acceleration": "{:.1f}×",
-            "PSNR in ROI (dB)": "{:.1f}",
-            "SSIM in ROI": "{:.4f}",
-        }),
-        use_container_width=True,
-        hide_index=True,
+    ui.table(
+        ["Strategy", "k-space used", "Acceleration", "PSNR in ROI", "SSIM in ROI"],
+        [
+            (
+                ui.inline(variant["label"]),
+                f"{variant['ratio'] * 100.0:.2f}%",
+                f"{variant['acceleration']:.1f}×",
+                ui.format_psnr(variant["psnr"]),
+                f"{variant['ssim']:.4f}",
+            )
+            for variant in comparison["variants"]
+        ],
+        caption="Four strategies at the same scan time",
+        number="7",
     )
 
     by_key = {variant["key"]: variant for variant in comparison["variants"]}
@@ -1082,23 +1181,23 @@ with tabs[6]:
         f"Even at R={R}, where only {R * R - 1} replicas fold in, that is a "
         "useless image."
     )
-    st.error(
-        "**The last row is the headline.** `no_suppression` uses the *identical* "
-        "samples as `reduced_fov` — the only difference is that the RF pulse was "
-        f"skipped, so the rest of the head is still producing signal and folds "
-        f"{R * R - 1} other pieces of the anatomy directly on top of the ROI. It "
-        f"scores **{no_supp_psnr:.1f} dB** against **{rfov_text}**. {verdict} "
-        "The excitation is not an optimisation on top of the method — **it is "
-        "the method**."
+    ui.remark(
+        "`no_suppression` uses the *identical* samples as `reduced_fov`; the only "
+        "difference is that the RF pulse was skipped, so the rest of the head is "
+        f"still producing signal and folds {R * R - 1} other pieces of the anatomy "
+        f"directly on top of the ROI. It scores **{no_supp_psnr:.1f} dB** against "
+        f"**{rfov_text}**. {verdict} The excitation is not an optimisation on top "
+        "of the method. **It is the method.**",
+        kind="caution",
+        lead="The last row is the headline.",
     )
-    st.info(
-        "Note that the two middle rows are not catastrophic, just mediocre — "
-        "they are the honest competitors. Reduced-FOV beats them by hundreds of "
-        "dB because it is not approximating anything: inside the box it is a "
-        "complete, critically-sampled measurement. This is the one tab in the "
-        "app where you do not trade quality for speed. The catch is that you "
-        "only get the box — and you have to know where to aim it before the "
-        "scan starts."
+    ui.remark(
+        "The two middle rows are not catastrophic, just mediocre; they are the "
+        "real competitors. Reduced-FOV beats them by hundreds of dB because it "
+        "is not approximating anything: inside the box it is a complete, "
+        "critically-sampled measurement. This is the one tab in the app where "
+        "you do not trade quality for speed. The catch is that you only get "
+        "the box, and you have to know where to aim it before the scan starts."
     )
 
 
@@ -1109,41 +1208,60 @@ with tabs[6]:
 with tabs[7]:
     st.subheader(meta["title"])
 
-    left, right = st.columns([1, 2])
+    left, right = st.columns([1, 2], gap="large")
     with left:
-        show_image(image, "Ground truth")
+        panels = [ui.panel(image, "Ground truth")]
         if tumor_mask is not None:
             # Red overlay on the expert tumour mask.
             overlay = np.stack([image] * 3, axis=-1)
             overlay[tumor_mask] = [1.0, 0.25, 0.25]
-            st.image(
-                overlay, caption="Expert tumour mask", use_container_width=True,
-                clamp=True, output_format="PNG",
-            )
+            panels.append(ui.panel(overlay, "Expert tumour mask"))
+        ui.figure(panels, columns=1 if len(panels) == 1 else 2)
 
     with right:
-        st.markdown("**Where this came from**")
-        st.markdown(
-            f"- Collection: `{meta['collection']}`\n"
-            f"- Source file: `{meta['source_file']}`\n"
-            f"- Stored shape: {meta['shape'][0]}×{meta['shape'][1]}\n"
-            f"- Tags: {', '.join(meta['tags'])}"
+        ui.table(
+            ["Field", "Value"],
+            [
+                ("Collection", ui.inline(f"`{meta['collection']}`")),
+                ("Source file", ui.inline(f"`{meta['source_file']}`")),
+                ("Stored shape", f"{meta['shape'][0]}×{meta['shape'][1]}"),
+                ("Tags", ui.inline(", ".join(meta["tags"]))),
+            ],
+            caption="Provenance",
+            number="8",
+            numeric=[False, False],
         )
-        st.caption(meta["collection_note"])
+        ui.note(meta["collection_note"])
 
-        st.markdown("**Acquisition**")
         acquisition = {k: v for k, v in meta["acquisition"].items() if v not in (None, "")}
-        st.json(acquisition, expanded=True)
+        ui.table(
+            ["Parameter", "Value"],
+            [(key.replace("_", " ").capitalize(), ui.inline(str(value)))
+             for key, value in acquisition.items()],
+            caption="Acquisition",
+            number="9",
+            numeric=[False, False],
+        )
 
-        st.markdown("**Derived statistics**")
         stats = meta["stats"]
-        st.markdown(
-            f"- Energy inside the central 10% radius: **{stats['energy_within_r0.1'] * 100:.1f}%**\n"
-            f"- Energy inside the central 25% radius: **{stats['energy_within_r0.25'] * 100:.1f}%**\n"
-            f"- k-space dynamic range: **{stats['kspace_dynamic_range_db']:.0f} dB** "
-            "(peak / median magnitude — why k-space is always shown on a log scale)\n"
-            f"- Hermitian asymmetry: **{stats['hermitian_asymmetry']:.2f}** "
-            "(≈0 would mean a real-valued image, where half of k-space is redundant)"
+        ui.table(
+            ["Statistic", "Value"],
+            [
+                ("Energy inside the central 10% radius",
+                 f"{stats['energy_within_r0.1'] * 100:.1f}%"),
+                ("Energy inside the central 25% radius",
+                 f"{stats['energy_within_r0.25'] * 100:.1f}%"),
+                ("k-space dynamic range (peak / median magnitude)",
+                 f"{stats['kspace_dynamic_range_db']:.0f} dB"),
+                ("Hermitian asymmetry (≈0 for a real-valued image)",
+                 f"{stats['hermitian_asymmetry']:.2f}"),
+            ],
+            caption="Derived statistics",
+            number="10",
+        )
+        ui.note(
+            "The dynamic range is why k-space is always shown on a log scale. An "
+            "asymmetry near 0 would mean half of k-space is redundant."
         )
 
     with st.expander("How this k-space was made, and what is simulated"):
