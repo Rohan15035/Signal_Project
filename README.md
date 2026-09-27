@@ -4,6 +4,7 @@ Project folder er root e giye ei command dilei hobe :
 streamlit run .\app\streamlit_app.py
 
 git bash : streamlit run app/streamlit_app.py
+live app: https://signalproject-ekudl6pyyhsqr9ulp9ptu2.streamlit.app/
 
 kspace store ta hocche kaggle dataset theke convert kore k-space banano hoyeche
 
